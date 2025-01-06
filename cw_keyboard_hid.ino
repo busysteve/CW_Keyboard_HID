@@ -2,12 +2,16 @@
 // ============================================================
 // decoder.ino :: An Iambic Keyer and Decoder (4x20 LCD)
 //
-// (c) Scott Baker KJ7NLA
-// Modified and Updated by Stephen Mathews K4SDM
+// (c) Stephen Mathews - K4SDM
+// Derived from code written by Scott Baker KJ7NLA
+//
 // ============================================================
 
 #include <Arduino.h>
 #include <Keyboard.h>
+#include <EEPROM.h>
+
+#define VERSION 01
 
 // Change these to suit your wiring - I use these as next to 
 // Ground to simplify wiring
@@ -18,7 +22,7 @@
 const uint8_t pinDit  = DIH_PIN;  // dit key input
 const uint8_t pinDah  = DAH_PIN;  // dah key input
 const uint8_t pinSw1  = 7;  // push-button switch
-const uint8_t pinBuzz = 9;  // buzzer/speaker pin
+const uint8_t pinBuzz = 4;  // buzzer/speaker pin
 
 //#define DEBUG 1           // uncomment for debug
 
@@ -31,7 +35,7 @@ const char m2a[129] PROGMEM =
    0x08,'*','*','*','*','*','*','*','*','*','*','*','?','_','*','*',
    '*','\\','"','*','*','.','*','*','*','*','@','*','*','*','\'','*',
    '*','-','*','*','*','*','*','*','*','*',';','!','*',')','*','*',
-   '*','*','*',',','*','*','*','*',':','*','*','*','*','*','*','*',0x08};
+   '*','*','*',',','*','*','*','*',':','*','*','*','*','*','*','`',0x08};
 
 // ASCII-to-Morse lookup table
 const uint8_t a2m[64] PROGMEM =
@@ -56,6 +60,7 @@ const uint8_t a2m[64] PROGMEM =
 
 volatile uint8_t  event    = NBP;
 volatile uint8_t  menumode = RUN_MODE;
+uint8_t keyerwpm;
 
 #define DITCONST  1200       // dit time constant
 #define MAXWPM    40         // max keyer speed
@@ -87,6 +92,8 @@ volatile uint8_t  menumode = RUN_MODE;
 #define BAUDRATE 115200
 
 // Class instantiation
+char speed_set_mode = 0;
+char speed = 0;
 
 uint8_t maddr = 1;
 uint8_t myrow = 0;
@@ -110,18 +117,77 @@ void(*resetFunc) (void) = 0;
 char xmit_buf[620] = {0};
 uint8_t xmit_cnt=0;
 
+char last_ch = 0;
+
 void print_cw() {
   char ch = lookup_cw(maddr);
-  Keyboard.press( ch );
-  Keyboard.release( ch );
-  if( ch == 0x08 )
+
+  if( speed_set_mode == 0 )
   {
     Keyboard.press( ch );
     Keyboard.release( ch );
+    if( ch == 0x08 && 0 )
+    {
+      Keyboard.press( ch );
+      Keyboard.release( ch );
+    }
   }
+  else
+  {
+    short wpm = keyerwpm;
+
+    if( ch == 'E' )
+    {
+      wpm--;
+      if( wpm < 5 )
+        wpm = 5;
+      change_wpm( wpm );
+      print_wpm( wpm );
+    }
+
+    if( ch == 'T' )
+    {
+      wpm++;
+      if( wpm > 30 )
+        wpm = 30;
+      change_wpm( wpm );
+      print_wpm( wpm );
+    }
+
+  }
+  
+
   //printchar(ch);
+  if( last_ch == '`' && ch == 0x08 )
+  {
+     speed_set_mode = 1;
+     speed = keyerwpm;
+  }
+
+  if( last_ch == 0x08 && ch == '`' )
+  {
+     speed_set_mode = 0;
+     EEPROM[1] = keyerwpm;
+  }
+  last_ch = ch;
+}
+
+void print_wpm( char wpm )
+{
+  char tens = (wpm / 10);
+  char ones = wpm % 10;
+
+  Keyboard.press( ' ' );
+  Keyboard.release( ' ' );
+
+  Keyboard.press( '0'+tens );
+  Keyboard.release( '0'+tens );
+
+  Keyboard.press( '0'+ones );
+  Keyboard.release( '0'+ones );
 
 }
+
 
 
 char realtime_xmit = 0;
@@ -469,7 +535,7 @@ void send_cwchr(char ch) {
 
 
 
-uint8_t keyerwpm;
+
 
 // initial keyer speed
 void ditcalc() {
@@ -505,8 +571,20 @@ void setup() {
   pinMode(pinBuzz, OUTPUT);
   // startup init
   Serial.begin(BAUDRATE);     // init serial/debug port
-  change_wpm(INITWPM);        // init keyer speed
 
+  if( EEPROM[0] != VERSION )
+  {
+    EEPROM[0] = VERSION;
+    change_wpm(INITWPM);        // init keyer speed
+  }
+  else
+  {
+    char w = EEPROM[1];
+    if( w > 30 || w < 5 )
+      change_wpm(INITWPM);
+    else
+      change_wpm(EEPROM[1]);
+  }
   delay(1500);
   //lcd.setRowOffsets( 0, 20, 30 40 );
 
@@ -547,8 +625,18 @@ void loop() {
       event = NBP;
     }
   }
+
+  if( speed_set_mode == 1 )
+  {
+    // Abort Speed Setting
+    if( !digitalRead(pinDit) && !digitalRead(pinDah) )
+    {
+      speed_set_mode = 0;
+      change_wpm( speed );
+    }
+  }
+
   // no buttons pressed
   iambic_keyer();
 }
-
 
