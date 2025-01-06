@@ -1,11 +1,10 @@
 
-// ============================================================
-// decoder.ino :: An Iambic Keyer and Decoder (4x20 LCD)
+// ==============================================================
+// cw_keyboard_hid.ino :: An Iambic Keyer USB keyboard simulator
 //
 // (c) Stephen Mathews - K4SDM
 // Derived from code written by Scott Baker KJ7NLA
-//
-// ============================================================
+// ==============================================================
 
 #include <Arduino.h>
 #include <Keyboard.h>
@@ -63,9 +62,9 @@ volatile uint8_t  menumode = RUN_MODE;
 uint8_t keyerwpm;
 
 #define DITCONST  1200       // dit time constant
-#define MAXWPM    40         // max keyer speed
-#define INITWPM   18         // startup keyer speed  // SDM
-#define MINWPM    10         // min keyer speed
+#define MAXWPM    35         // max keyer speed
+#define INITWPM   10         // startup keyer speed  // SDM
+#define MINWPM    5         // min keyer speed
 
 #define MINTONE 450
 #define MAXTONE 850
@@ -139,8 +138,8 @@ void print_cw() {
     if( ch == 'E' )
     {
       wpm--;
-      if( wpm < 5 )
-        wpm = 5;
+      if( wpm < MINWPM )
+        wpm = MINWPM;
       change_wpm( wpm );
       print_wpm( wpm );
     }
@@ -148,8 +147,8 @@ void print_cw() {
     if( ch == 'T' )
     {
       wpm++;
-      if( wpm > 30 )
-        wpm = 30;
+      if( wpm > MAXWPM )
+        wpm = MAXWPM;
       change_wpm( wpm );
       print_wpm( wpm );
     }
@@ -579,16 +578,28 @@ void setup() {
   }
   else
   {
-    char w = EEPROM[1];
-    if( w > 30 || w < 5 )
-      change_wpm(INITWPM);
+    if( !digitalRead(pinDit) && !digitalRead(pinDah) )
+    {
+      speed_set_mode = 0;
+      change_wpm( INITWPM );
+      EEPROM[1] = INITWPM;
+    }
     else
-      change_wpm(EEPROM[1]);
+    {
+      char w = EEPROM[1];
+      if( w > MAXWPM || w < MINWPM )
+        change_wpm(INITWPM);
+      else
+        change_wpm(EEPROM[1]);
+    }
   }
   delay(1500);
   //lcd.setRowOffsets( 0, 20, 30 40 );
 
   ditcalc();
+
+  send_cwchr('O');
+  send_cwchr('K');
 }
 
 // main loop
