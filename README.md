@@ -1,5 +1,5 @@
 # CW_Keyboard_HID
-Use an Arduino Micro to use you Morse code paddle as a make-shift all caps keyboard for your computer to practice CW.
+Use an Arduino Micro to use your Morse code paddle as a make-shift all caps keyboard for your computer to practice CW.
 
 By default the device runs at 10 wpm, but it is adjustable and saves the setting in EEPROM memory for the next time.
 
