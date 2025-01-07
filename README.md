@@ -17,6 +17,7 @@ To set your word per minute rate hold the long (dah) paddle for 6 tones.  Then f
 ```
 
 #To abort the setting mode
+
 Hold both paddles at the same time.
 
 
