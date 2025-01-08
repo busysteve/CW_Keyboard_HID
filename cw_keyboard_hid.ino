@@ -18,10 +18,13 @@
 #define DAH_PIN 2
 #define ledPin LED_BUILTIN
 
+#define VBAND_DAH ']'
+#define VBAND_DIT '['
+#define BUZZ_PIN   4
 const uint8_t pinDit  = DIH_PIN;  // dit key input
 const uint8_t pinDah  = DAH_PIN;  // dah key input
 const uint8_t pinSw1  = 7;  // push-button switch
-const uint8_t pinBuzz = 4;  // buzzer/speaker pin
+      uint8_t pinBuzz = BUZZ_PIN;  // buzzer/speaker pin
 
 //#define DEBUG 1           // uncomment for debug
 
@@ -60,6 +63,9 @@ const uint8_t a2m[64] PROGMEM =
 volatile uint8_t  event    = NBP;
 volatile uint8_t  menumode = RUN_MODE;
 uint8_t keyerwpm;
+
+char vband_mode = 0;
+
 
 #define DITCONST  1200       // dit time constant
 #define MAXWPM    35         // max keyer speed
@@ -121,40 +127,42 @@ char last_ch = 0;
 void print_cw() {
   char ch = lookup_cw(maddr);
 
-  if( speed_set_mode == 0 )
+  if( !vband_mode )
   {
-    Keyboard.press( ch );
-    Keyboard.release( ch );
-    if( ch == 0x08 && 0 )
+    if( speed_set_mode == 0 )
     {
       Keyboard.press( ch );
       Keyboard.release( ch );
+      if( ch == 0x08 && 0 )
+      {
+        Keyboard.press( ch );
+        Keyboard.release( ch );
+      }
     }
-  }
-  else
-  {
-    short wpm = keyerwpm;
-
-    if( ch == 'E' )
+    else
     {
-      wpm--;
-      if( wpm < MINWPM )
-        wpm = MINWPM;
-      change_wpm( wpm );
-      print_wpm( wpm );
-    }
+      short wpm = keyerwpm;
 
-    if( ch == 'T' )
-    {
-      wpm++;
-      if( wpm > MAXWPM )
-        wpm = MAXWPM;
-      change_wpm( wpm );
-      print_wpm( wpm );
-    }
+      if( ch == 'E' )
+      {
+        wpm--;
+        if( wpm < MINWPM )
+          wpm = MINWPM;
+        change_wpm( wpm );
+        print_wpm( wpm );
+      }
 
-  }
-  
+      if( ch == 'T' )
+      {
+        wpm++;
+        if( wpm > MAXWPM )
+          wpm = MAXWPM;
+        change_wpm( wpm );
+        print_wpm( wpm );
+      }
+
+    }
+  }    
 
   //printchar(ch);
   if( last_ch == '`' && ch == 0x08 )
@@ -176,14 +184,21 @@ void print_wpm( char wpm )
   char tens = (wpm / 10);
   char ones = wpm % 10;
 
+  delay(2);
+
   Keyboard.press( ' ' );
   Keyboard.release( ' ' );
+
+  delay(2);
 
   Keyboard.press( '0'+tens );
   Keyboard.release( '0'+tens );
 
+  delay(2);
+
   Keyboard.press( '0'+ones );
   Keyboard.release( '0'+ones );
+
 
 }
 
@@ -285,6 +300,7 @@ void read_paddles() {
   uint8_t dahv1 = !digitalRead(pinDah);
   uint8_t ditv2 = !digitalRead(pinDit);
   uint8_t dahv2 = !digitalRead(pinDah);
+
   if (ditv1 && ditv2) {
     if (keyswap) keyerinfo |= DAH_REG;
     else keyerinfo |= DIT_REG;
@@ -294,6 +310,21 @@ void read_paddles() {
     else keyerinfo |= DAH_REG;
   }
   if (GOTBOTH) keyerinfo |= BOTH_REG;
+
+  if( vband_mode )
+  {
+    //Keyboard.releaseAll();
+
+    if( keyerinfo & DAH_REG )
+      Keyboard.press( VBAND_DAH );
+    else
+      Keyboard.release( VBAND_DAH );
+
+    if( keyerinfo & DIT_REG )
+      Keyboard.press( VBAND_DIT );
+    else
+      Keyboard.release( VBAND_DIT );
+  }
 }
 
 // iambic keyer state machine
@@ -448,7 +479,7 @@ void iambic_keyer() {
   }
 
 
-
+      if( !vband_mode )
       {
           if (Serial.available() > 0) {
             // read the incoming byte:
@@ -583,6 +614,17 @@ void setup() {
       speed_set_mode = 0;
       change_wpm( INITWPM );
       EEPROM[1] = INITWPM;
+      EEPROM[2] = 0;
+    }
+    else if( !digitalRead(pinDit) )
+    {
+      vband_mode = 1;
+      EEPROM[2] = vband_mode;
+    }
+    else if( !digitalRead(pinDah) )
+    {
+      vband_mode = 0;
+      EEPROM[2] = vband_mode;
     }
     else
     {
@@ -591,15 +633,35 @@ void setup() {
         change_wpm(INITWPM);
       else
         change_wpm(EEPROM[1]);
+
+      vband_mode = EEPROM[2];
     }
   }
+
+
+  while( !digitalRead(pinDit) || !digitalRead(pinDah) )
+  {
+     delay(5);
+     digitalWrite( pinDit, HIGH );
+     digitalWrite( pinDah, HIGH );
+     delay(5);
+  }
+
   delay(1500);
+
+  digitalWrite( pinDit, HIGH );
+  digitalWrite( pinDah, HIGH );
+
   //lcd.setRowOffsets( 0, 20, 30 40 );
 
   ditcalc();
 
   send_cwchr('O');
   send_cwchr('K');
+
+  if( vband_mode )
+    pinBuzz = 0;
+
 }
 
 // main loop
@@ -650,4 +712,3 @@ void loop() {
   // no buttons pressed
   iambic_keyer();
 }
-
