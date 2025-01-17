@@ -18,8 +18,11 @@
 #define DAH_PIN 2
 #define ledPin LED_BUILTIN
 
-#define VBAND_DAH ']'
-#define VBAND_DIT '['
+#define VBAND_DAH KEY_RIGHT_CTRL
+#define VBAND_DIT KEY_LEFT_CTRL
+//#define VBAND_DAH 0xe2
+//#define VBAND_DIT 0xe1
+
 #define BUZZ_PIN   4
 const uint8_t pinDit  = DIH_PIN;  // dit key input
 const uint8_t pinDah  = DAH_PIN;  // dah key input
@@ -27,6 +30,9 @@ const uint8_t pinSw1  = 7;  // push-button switch
       uint8_t pinBuzz = BUZZ_PIN;  // buzzer/speaker pin
 
 //#define DEBUG 1           // uncomment for debug
+
+
+
 
 // Morse-to-ASCII lookup table
 const char m2a[129] PROGMEM =
@@ -133,10 +139,13 @@ void print_cw() {
     {
       Keyboard.press( ch );
       Keyboard.release( ch );
+      Keyboard.flush();
+
       if( ch == 0x08 && 0 )
       {
         Keyboard.press( ch );
         Keyboard.release( ch );
+        Keyboard.flush();
       }
     }
     else
@@ -177,6 +186,8 @@ void print_cw() {
      EEPROM[1] = keyerwpm;
   }
   last_ch = ch;
+
+  Keyboard.flush();
 }
 
 void print_wpm( char wpm )
@@ -188,16 +199,21 @@ void print_wpm( char wpm )
 
   Keyboard.press( ' ' );
   Keyboard.release( ' ' );
+  Keyboard.flush();
 
   delay(2);
 
   Keyboard.press( '0'+tens );
   Keyboard.release( '0'+tens );
+  Keyboard.flush();
 
   delay(2);
 
   Keyboard.press( '0'+ones );
   Keyboard.release( '0'+ones );
+  Keyboard.flush();
+
+  //Keyboard.flush();
 
 
 }
@@ -592,6 +608,26 @@ void doError() {
   resetFunc();
 }
 
+
+void refresh_reset()
+{
+  while( !digitalRead(pinDit) || !digitalRead(pinDah) )
+  {
+    delay(5);
+    tone( pinBuzz, 700, 200);
+    delay(200);
+    tone( pinBuzz, 900, 200);
+    delay(200);
+    tone( pinBuzz, 800, 200);
+    delay(500);
+
+    Keyboard.releaseAll();
+
+    delay(100);
+
+    resetFunc();
+  }
+}
 // program setup
 void setup() {
   // set GPIO
@@ -612,19 +648,26 @@ void setup() {
     if( !digitalRead(pinDit) && !digitalRead(pinDah) )
     {
       speed_set_mode = 0;
+      vband_mode = 0;
       change_wpm( INITWPM );
       EEPROM[1] = INITWPM;
       EEPROM[2] = 0;
+
+      refresh_reset();
     }
-    else if( !digitalRead(pinDit) )
+    else if( !digitalRead(pinDit) && digitalRead(pinDah) )
     {
       vband_mode = 1;
       EEPROM[2] = vband_mode;
+
+      refresh_reset();
     }
-    else if( !digitalRead(pinDah) )
+    else if( digitalRead(pinDit) && !digitalRead(pinDah) )
     {
       vband_mode = 0;
       EEPROM[2] = vband_mode;
+
+      refresh_reset();
     }
     else
     {
@@ -639,18 +682,9 @@ void setup() {
   }
 
 
-  while( !digitalRead(pinDit) || !digitalRead(pinDah) )
-  {
-     delay(5);
-     digitalWrite( pinDit, HIGH );
-     digitalWrite( pinDah, HIGH );
-     delay(5);
-  }
+  refresh_reset();
 
   delay(1500);
-
-  digitalWrite( pinDit, HIGH );
-  digitalWrite( pinDah, HIGH );
 
   //lcd.setRowOffsets( 0, 20, 30 40 );
 
@@ -662,6 +696,14 @@ void setup() {
   if( vband_mode )
     pinBuzz = 0;
 
+  Keyboard.begin();
+  Keyboard.end();
+
+  delay(100);
+  Keyboard.begin();
+  Keyboard.releaseAll();
+  keyerstate = 0;
+  keyerinfo = 0;
 }
 
 // main loop
@@ -712,3 +754,5 @@ void loop() {
   // no buttons pressed
   iambic_keyer();
 }
+
+
