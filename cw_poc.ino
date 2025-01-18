@@ -188,11 +188,11 @@ uint8_t mycol = 0;
 char tmpstr[12];
 
 char lookup_cw(uint8_t x);
-void print_cw(void);
+void print_cw(bool);
 void maddr_cmd(uint8_t cmd);
 inline bool read_switch(void);
 void read_paddles(void);
-void iambic_keyer(void);
+void iambic_keyer(bool);
 void straight_key(void);
 void send_cwchr(char ch);
 void ditcalc(void);
@@ -206,9 +206,10 @@ uint8_t xmit_cnt=0;
 
 char last_ch = 0;
 
-char print_cw() {
+void print_cw(bool out = true) {
   char ch = lookup_cw(maddr);
 
+  if( out )
   if( !vband_mode )
   {
     if( speed_set_mode == 0 )
@@ -439,16 +440,14 @@ void read_paddles() {
   }
 }
 
-// iambic keyer state machine
-void iambic_keyer() {
+void iambic_keyer( bool out = true ) {
   static uint32_t ktimer;
   switch (keyerstate) {
     case KEY_IDLE:
       read_paddles();
       if (GOTKEY) {
         keyerstate = CHK_KEY;
-      } 
-      else {
+      } else {
         keyerinfo = 0;
       }
       break;
@@ -567,7 +566,7 @@ void iambic_keyer() {
       if (millis() > ktimer) {
         // word gap found so print a space
         maddr = 1;
-        print_cw();
+        print_cw( out );
         keyerstate = KEY_IDLE;
         if( realtime_xmit == 1 )
         {
@@ -587,38 +586,36 @@ void iambic_keyer() {
         keyerinfo = 0;
       }
       break;
-    case BOTH_KEY:
-        sw1Pushed = 1;
-      break;
     default:
       break;
   }
 
 
-  if( !vband_mode )
-  {
-    if (Serial.available() > 0) {
-      // read the incoming byte:
-      char incomingByte = Serial.read();
-  
-      // say what you got:
-      if( incomingByte == '.' )
-        {
-          tone(pinBuzz, remotetone);
-          delay( dittime );
-          noTone( pinBuzz );
-        }
-      else if( incomingByte == '-' )
-        {             
-          tone(pinBuzz, remotetone);
-          delay( dahtime );
-          noTone( pinBuzz );
-        }
-        delay( dittime );
-    }
-  }
+
+      {
+          if (Serial.available() > 0) {
+            // read the incoming byte:
+            char incomingByte = Serial.read();
+        
+            // say what you got:
+            if( incomingByte == '.' )
+              {
+                tone(pinBuzz, remotetone);
+                delay( dittime );
+                noTone( pinBuzz );
+              }
+            else if( incomingByte == '-' )
+              {             
+                tone(pinBuzz, remotetone);
+                delay( dahtime );
+                noTone( pinBuzz );
+              }
+              delay( dittime );
+          }
+      }
   
 }
+
 
 // handle straight key mode
 void straight_key() {
@@ -895,17 +892,18 @@ void menu_trainer_mode() {
     delay(10);
   }
   // loop until button is pressed
-  while ( !sw1Pushed ) {
+  iambic_keyer();
+  while ( last_ch != 'N' && last_ch != 'A' && last_ch != 'X' ) {
     keyerinfo = 0;
-    read_paddles();
-    if (keyerinfo & DAH_REG) {
+    //read_paddles();
+    if ( last_ch == 'T' ) {
       lesson_mode+=1;
       tone(pinBuzz, keyertone );
       delay( dittime );
       noTone( pinBuzz);
       dirty = true;
     }
-    if (keyerinfo & DIT_REG) {
+    if ( last_ch == 'E' ) {
       lesson_mode-=1;
       tone(pinBuzz, keyertone );
       delay( dittime );
@@ -1024,17 +1022,19 @@ void menu_trainer_mode() {
     
     dirty = false;
 
+    /*
     while (GOTKEY) {
       keyerinfo = 0;
       read_paddles();
       delay(10);
     }
+    */
     keyerinfo = 0;
     //itoa(lesson_mode,tmpstr,10);
     //strcat(tmpstr," Hz");
     //print_line(1, tmpstr);
-  
-    read_switch();
+
+    iambic_keyer();
 
   }
   delay(10); // debounce
@@ -1765,6 +1765,10 @@ void loop() {
   }
 
   // no buttons pressed
+  char last = last_ch;
   iambic_keyer();
-}
+  char next = last_ch;
 
+  if( last == ';' && next == ';' )
+    menu_trainer_mode();
+}
