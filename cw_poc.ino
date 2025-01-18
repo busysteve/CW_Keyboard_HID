@@ -6,11 +6,15 @@
 // Derived from code written by Scott Baker KJ7NLA
 // ==============================================================
 
+#define CW_OLED 1
+#define CW_LCD  0
+
+
 #include <Arduino.h>
 #include <Keyboard.h>
 #include <EEPROM.h>
 
-#define VERSION 01
+#define VERSION 9
 
 // Change these to suit your wiring - I use these as next to 
 // Ground to simplify wiring
@@ -27,6 +31,8 @@
 const uint8_t pinDit  = DIH_PIN;  // dit key input
 const uint8_t pinDah  = DAH_PIN;  // dah key input
 const uint8_t pinSw1  = 7;  // push-button switch
+const uint8_t pinInnerBuzz = BUZZ_PIN;
+const uint8_t pinOuterBuzz = BUZZ_PIN;
       uint8_t pinBuzz = BUZZ_PIN;  // buzzer/speaker pin
 
 //#define DEBUG 1           // uncomment for debug
@@ -40,11 +46,11 @@ const char m2a[0xc6] PROGMEM =
    'H','V','F','*','L','*','P','J','B','X','C','Y','Z','Q','*','*',
    '5','4','S','3','*','*','*','2','&','*','+','*','*','*','J','1',
    '6','=','/','*','*','#','(','*','7','*','G','*','8','*','9','0',
-   '^','*','*','*','*','*','*','*','*','*','*','*','?','_','*','*',
+   0x08,'*','*','*','*','*','*','*','*','*','*','*','?','_','*','*',
    '*','*','"','*','*','.','*','*','*','*','@','*','*','*','\'','*',
    '*','-','*','*','*','*','*','*','*','*',';','!','*',')','*','*',
-   '*','*','*',',','*','*','*','*',':','*','*','*','*','*','*','*',
-   '^','*','*','*','*','*','*','*','*','*','*','*','*','*','*','*',
+   '*','*','*',',','*','*','*','*',':','*','*','*','*','*','*','`',
+   0x08,'*','*','*','*','*','*','*','*','*','*','*','*','*','*','*',
    '*','*','*','*','*','*','*','*','*','*','*','*','*','*','*','*',
    '*','*','*','*','*','*','*','*','*','*','*','*','*','*','*','*',
    '*','*','*','*','*','*','*','*','*','*','*','*','*','*','*','*',
@@ -60,6 +66,66 @@ const uint8_t a2m[64] PROGMEM =
    0x10,0x04,0x17,0x0d,0x14,0x07,0x06,0x0f,  // H I J K L M N O
    0x16,0x1d,0x0a,0x08,0x03,0x09,0x11,0x0b,  // P Q R S T U V W
    0x19,0x1b,0x1c,0x4c,0xc5,0x4c,0x80,0x4d}; // X Y Z [ \ ] ^ _
+
+
+
+const char* lesson_licw    = "REATINPGSLCDHOFUWBKMY59,QXV73?16.ZJ/28\\40";
+const char* lesson_koch    = "KMRSUAPTLOWI.NJEF0Y,VG5/Q9ZH38B?427C1D6X\\";
+const char* lesson_estonia = "ESTONIADRMULCHPFWYGBJKQXZY1234567890,.?/\\";
+char* lesson_seq;
+
+byte lesson_window = 0;
+
+char buzz_mode = 0;
+const byte ver = 1;
+
+class LCD_Sim
+{
+
+  public:
+
+    void setCursor( char col, char row )
+    {
+    }
+
+    void clear()
+    {
+      Keyboard.print('\n');
+    }
+
+    void print(char ch, bool draw = true )
+    {
+      Keyboard.print( ch );
+    }
+
+    void print( const char* str )
+    {
+      for( int i=0; str[i] != '\0'; i++ )
+        print( str[i], false );
+    }
+
+    void print_line( char row, const char* str )
+    {
+      int i;
+      for( i=0; str[i] != '\0'; i++ )
+        print( str[i], false );
+    }
+
+    void clear_line( char row )
+    {
+      Keyboard.print( '\n' );
+    }
+
+};
+
+
+LCD_Sim lcds;
+
+
+
+
+
+
 
 // user interface
 #define NBP  0  // no-button-pushed
@@ -87,13 +153,18 @@ char vband_mode = 0;
 #define MAXTONE 850
 
 #define MINLESSONMODE 0
-#define MAXLESSONMODE 1
+#define MAXLESSONMODE 3
 
 #define MINLESSON 1
-#define MAXLESSON 39
+#define MAXLESSON 40
+
+
+#define MINWINDOW 0
+#define MAXWINDOW 10
+
 
 #define MINLESSONCNT 1
-#define MAXLESSONCNT 80
+#define MAXLESSONCNT 60
 
 
 // 4x20 LCD
@@ -119,7 +190,7 @@ char tmpstr[12];
 char lookup_cw(uint8_t x);
 void print_cw(void);
 void maddr_cmd(uint8_t cmd);
-inline void read_switch(void);
+inline bool read_switch(void);
 void read_paddles(void);
 void iambic_keyer(void);
 void straight_key(void);
@@ -135,7 +206,7 @@ uint8_t xmit_cnt=0;
 
 char last_ch = 0;
 
-void print_cw() {
+char print_cw() {
   char ch = lookup_cw(maddr);
 
   if( !vband_mode )
@@ -284,6 +355,7 @@ void maddr_cmd(uint8_t cmd) {
 #define IDD_WAIT    3
 #define LTR_GAP     4
 #define WORD_GAP    5
+#define BOTH_KEY    6
 
 // more key info
 #define GOTKEY  (keyerinfo & KEY_REG)
@@ -303,8 +375,12 @@ uint8_t  sw1Pushed = 0;  // button pushed
 uint8_t  long_squeeze = 0;  // paddles squeezed
 
 // read and debounce switch
-inline void read_switch() {
-  sw1Pushed = !digitalRead(pinSw1);
+inline bool read_switch() {
+  sw1Pushed = ( !digitalRead(pinDit) && !digitalRead(pinDah) );
+  delay(20);
+  if( sw1Pushed )
+    sw1Pushed = ( !digitalRead(pinDit) && !digitalRead(pinDah) );
+/*
   read_paddles();
   if( long_squeeze )
   {
@@ -313,6 +389,8 @@ inline void read_switch() {
       sw1Pushed = 1;
   }
   long_squeeze = 0;
+*/
+  return sw1Pushed;
 }
 
 // read and debounce paddles
@@ -330,8 +408,11 @@ void read_paddles() {
     if (keyswap) keyerinfo |= DIT_REG;
     else keyerinfo |= DAH_REG;
   }
-  if (GOTBOTH) keyerinfo |= BOTH_REG;
-
+  if (GOTBOTH)
+  {
+    keyerinfo |= BOTH_REG;
+  }
+/*
   if( keyerinfo & BOTH_REG )
   {
     delay(200);
@@ -340,6 +421,7 @@ void read_paddles() {
     else
       long_squeeze = 0;
   }
+*/
 
   if( vband_mode )
   {
@@ -365,7 +447,8 @@ void iambic_keyer() {
       read_paddles();
       if (GOTKEY) {
         keyerstate = CHK_KEY;
-      } else {
+      } 
+      else {
         keyerinfo = 0;
       }
       break;
@@ -504,33 +587,36 @@ void iambic_keyer() {
         keyerinfo = 0;
       }
       break;
+    case BOTH_KEY:
+        sw1Pushed = 1;
+      break;
     default:
       break;
   }
 
 
-      if( !vband_mode )
-      {
-          if (Serial.available() > 0) {
-            // read the incoming byte:
-            char incomingByte = Serial.read();
-        
-            // say what you got:
-            if( incomingByte == '.' )
-              {
-                tone(pinBuzz, remotetone);
-                delay( dittime );
-                noTone( pinBuzz );
-              }
-            else if( incomingByte == '-' )
-              {             
-                tone(pinBuzz, remotetone);
-                delay( dahtime );
-                noTone( pinBuzz );
-              }
-              delay( dittime );
-          }
-      }
+  if( !vband_mode )
+  {
+    if (Serial.available() > 0) {
+      // read the incoming byte:
+      char incomingByte = Serial.read();
+  
+      // say what you got:
+      if( incomingByte == '.' )
+        {
+          tone(pinBuzz, remotetone);
+          delay( dittime );
+          noTone( pinBuzz );
+        }
+      else if( incomingByte == '-' )
+        {             
+          tone(pinBuzz, remotetone);
+          delay( dahtime );
+          noTone( pinBuzz );
+        }
+        delay( dittime );
+    }
+  }
   
 }
 
@@ -644,44 +730,16 @@ void refresh_reset()
 }
 
 
-
-// convert ascii to morse
-void send_cwchr(char ch) {
-  uint8_t mcode;
-  // remove the ascii code offset (0x20) to
-  // create a lookup table address
-  uint8_t addr = (uint8_t)ch - 0x20;
-  // then lookup the Morse code from the a2m table
-  // note: any unknown unknown ascii char is
-  // translated to a '?' (mcode 0x4c)
-  if (addr < 64) mcode = pgm_read_byte(a2m + addr);
-  else mcode = 0x4c;
-  // if space (mcode 0x01) is found
-  // then wait for one word space
-  if (mcode == 0x01) delay(wordgap2);
-  else {
-    uint8_t mask = 0x80;
-    // use a bit mask to find the leftmost 1
-    // this marks the start of the Morse code bits
-    while (!(mask & mcode)) mask = mask >> 1;
-    while (mask != 1) {
-      mask = mask >> 1;
-      // use the bit mask to select a bit from
-      // the Morse code starting from the left
-      tone(pinBuzz, keyertone);
-      // turn the side-tone on for dit or dah length
-      // if the mcode bit is a 1 then send a dah
-      // if the mcode bit is a 0 then send a dit
-      delay((mcode & mask) ? dahtime : dittime);
-      noTone(pinBuzz);
-      // turn the side-tone off for a symbol space
-      delay(dittime);
-    }
-
-    
-    delay(lettergap2);  // add letter space
-  }
+void printchar( char ch )
+{
+  Keyboard.print( ch );
 }
+
+void clear_line( char ch )
+{
+  Keyboard.print('\n');
+}
+
 
 // transmit a CW message
 void send_cwmsg(char *str, uint8_t prn) {
@@ -704,39 +762,24 @@ void send_cwmsg(char *str, uint8_t prn) {
   }
 }
 
-
+void print_line( char ln, char* str )
+{
+  Keyboard.println( str );
+}
 
 // back to run mode
 void back2run() {
   menumode = RUN_MODE;
   lcds.clear();
-  print_line(0, "READY >>");
+// print_line(0, "READY >>");
   delay(700);
   clear_line(0);
   myrow = 0;
   mycol = 0;
 }
 
-uint8_t keyerwpm;
 
-// initial keyer speed
-void ditcalc() {
-  int farn = keyerwpm - farns;
-  if( farn <= 0 ) farn = keyerwpm;
 
-  dittime    = DITCONST/keyerwpm;
-  dahtime    = (DITCONST * 3)/keyerwpm;
-  lettergap1 = (DITCONST * 2.5)/(keyerwpm);
-  lettergap2   = (DITCONST * 3)/(farn);
-  wordgap1   = (DITCONST * 5)/(keyerwpm);
-  wordgap2   = (DITCONST * 7)/(farn);
-}
-
-// change the keyer speed
-void change_wpm(uint8_t wpm) {
-  keyerwpm = wpm;
-  ditcalc();
-}
 
 // user interface menu to
 // increase or decrease keyer speed
@@ -835,7 +878,7 @@ void menu_tone() {
     ditcalc();
     send_cwmsg("OK", 0);
     back2run();
-  } else menu_remotetone();
+  } else menu_mode();
 }
 
 // remote keyer tone menu to
@@ -852,8 +895,7 @@ void menu_trainer_mode() {
     delay(10);
   }
   // loop until button is pressed
-  while (!sw1Pushed) {
-    read_switch();
+  while ( !sw1Pushed ) {
     keyerinfo = 0;
     read_paddles();
     if (keyerinfo & DAH_REG) {
@@ -991,6 +1033,9 @@ void menu_trainer_mode() {
     //itoa(lesson_mode,tmpstr,10);
     //strcat(tmpstr," Hz");
     //print_line(1, tmpstr);
+  
+    read_switch();
+
   }
   delay(10); // debounce
   // if wpm changed the recalculate the
@@ -1083,6 +1128,9 @@ void menu_trainer_lesson() {
   #endif
       dirty = false;
     }
+
+    read_switch();
+
   }
   delay(10); // debounce
   // if wpm changed then recalculate the
@@ -1185,6 +1233,7 @@ void menu_lesson_window() {
       dirty = false;
     }
 
+    read_switch();
 
   }
   delay(10); // debounce
@@ -1250,6 +1299,9 @@ void menu_trainer_lesson_size() {
     itoa(lesson_size,tmpstr,10);
     strcat(tmpstr,"   ");
     print_line(1, tmpstr);
+
+    read_switch();
+
   }
   delay(10); // debounce
   // if wpm changed the recalculate the
@@ -1308,6 +1360,9 @@ void menu_trainer_farns() {
     itoa(farns,tmpstr,10);
     strcat(tmpstr,"   ");
     print_line(2, tmpstr);
+
+    read_switch();
+
   }
   delay(10); // debounce
   // if wpm changed the recalculate the
@@ -1322,60 +1377,9 @@ void menu_trainer_farns() {
 
 
 
-// remote keyer tone menu to
-// increase or decrease keyer tone
-void menu_remotetone() {
-  uint16_t prev_tone = remotetone;
-  lcds.clear();
-  print_line(0, "REMOTE TONE IS");
-  // wait until button is released
-  while (sw1Pushed) {
-    read_switch();
-    delay(10);
-  }
-  // loop until button is pressed
-  while (!sw1Pushed) {
-    read_switch();
-    keyerinfo = 0;
-    read_paddles();
-    if (keyerinfo & DAH_REG) {
-      remotetone+=10;
-      tone(pinBuzz, remotetone );
-      delay( dittime );
-      noTone( pinBuzz);
-    }
-    if (keyerinfo & DIT_REG) {
-      remotetone-=10;
-      tone(pinBuzz, remotetone );
-      delay( dittime );
-      noTone( pinBuzz);
-    }
-    // check limits
-    if (remotetone < MINTONE) remotetone = MINTONE;
-    if (remotetone > MAXTONE) remotetone = MAXTONE;
-
-    
-    while (GOTKEY) {
-      keyerinfo = 0;
-      read_paddles();
-      delay(10);
-    }
-    keyerinfo = 0;
-    itoa(remotetone,tmpstr,10);
-    strcat(tmpstr," Hz");
-    print_line(1, tmpstr);
-  }
-  delay(10); // debounce
-  // if wpm changed the recalculate the
-  // dit timing and and send an OK message
-  if (prev_tone != remotetone) {
-    ditcalc();
-    send_cwmsg("OK", 0);
-    back2run();
-  } else menu_buzzer_mode();
-}
 
 
+/*
 
 // xmit mode
 // increase or decrease keyer tone
@@ -1441,7 +1445,7 @@ void menu_buzzer_mode() {
     back2run();
   } else menu_mode();
 }
-
+*/
 
 // select keyer mode
 void menu_mode() {
@@ -1620,40 +1624,79 @@ void setup() {
       speed_set_mode = 0;
       vband_mode = 0;
       change_wpm( INITWPM );
-      EEPROM[1] = INITWPM;
-      EEPROM[2] = 0;
+      EEPROM[4] = INITWPM;
+      EEPROM[9] = 0;
 
       refresh_reset();
     }
     else if( !digitalRead(pinDit) && digitalRead(pinDah) )
     {
       vband_mode = 1;
-      EEPROM[2] = vband_mode;
+      EEPROM[9] = vband_mode;
 
       refresh_reset();
     }
     else if( digitalRead(pinDit) && !digitalRead(pinDah) )
     {
       vband_mode = 0;
-      EEPROM[2] = vband_mode;
+      EEPROM[9] = vband_mode;
 
       refresh_reset();
     }
     else
     {
-      char w = EEPROM[1];
+      char w = EEPROM[4];
       if( w > MAXWPM || w < MINWPM )
         change_wpm(INITWPM);
       else
-        change_wpm(EEPROM[1]);
+        change_wpm(EEPROM[4]);
 
-      vband_mode = EEPROM[2];
+      vband_mode = EEPROM[9];
     }
   }
 
 
-  refresh_reset();
+  byte val = EEPROM[0];
+  if( val != ver )
+  {
+    EEPROM[0] = ver;
+    EEPROM[1] = lesson = (byte) 5;
+    EEPROM[2] = lesson_mode = (byte) 1;
+    EEPROM[3] = farns = (byte) 12;
+    EEPROM[4] = keyerwpm = (byte) INITWPM;
+    EEPROM[5] = keyermode = (byte) IAMBICA;
+    EEPROM[6] = lesson_size = (byte) MAXLESSONCNT;
+    EEPROM[7] = buzz_mode = (byte) 1;
+    EEPROM[8] = lesson_window = (byte) 0;
+    EEPROM[9] = vband_mode = (byte) 0;
+    //EEPROM.write()
+  }
+  else
+  {
+    lesson = EEPROM[1];
+    lesson_mode = EEPROM[2];
+    farns = EEPROM[3];
+    keyerwpm = EEPROM[4];
+    keyermode = EEPROM[5];
+    lesson_size = EEPROM[6];
+    buzz_mode = EEPROM[7];
+    lesson_window = EEPROM[8];
+    vband_mode = EEPROM[9];
+    //EEPROM.write()
+  }
 
+  if( lesson_mode == 1 )
+    lesson_seq = lesson_licw;
+  if( lesson_mode == 3 )
+    lesson_seq = lesson_estonia;
+  else
+    lesson_seq = lesson_koch;
+    
+  if( buzz_mode == 0 )
+    pinBuzz = pinInnerBuzz;
+  else
+    pinBuzz = pinOuterBuzz;
+  
   delay(1500);
 
   //lcd.setRowOffsets( 0, 20, 30 40 );
@@ -1700,7 +1743,7 @@ void loop() {
         default:
           menumode = 0;
       }
-      //menu_trainer_mode();
+      menu_trainer_mode();
       event = NBP;
     }
 
@@ -1724,5 +1767,4 @@ void loop() {
   // no buttons pressed
   iambic_keyer();
 }
-
 
