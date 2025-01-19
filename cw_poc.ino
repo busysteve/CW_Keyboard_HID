@@ -1539,7 +1539,7 @@ test_again:
     mycol = 0;
     lcds.clear();
     //lcds.clear();
-    print_line(0, "QUIZ MODE");
+    print_line(0, "QUIZ MODE\n");
 
     delay(2200);
 
@@ -1701,38 +1701,6 @@ void setup() {
 
 // main loop
 void loop() {
-  uint32_t t0;
-  read_switch();
-  if (sw1Pushed) {
-    event = BSC;
-    delay(10); // debounce
-    t0 = millis();
-    // check for long button press
-    while (sw1Pushed && (event != BPL)) {
-      if (millis() > (t0 + LONGPRESS)) event = BPL;
-      read_switch();
-      delay(10);  // debounce
-    }
-
-    // button single click
-    if (event == BSC) {
-      switch (menumode) {
-        case RUN_MODE:
-          menumode = SETUP;
-          break;
-        default:
-          menumode = 0;
-      }
-      menu_trainer_mode();
-      event = NBP;
-    }
-
-    // long button press
-    else if (event == BPL) {
-      //menu_msg();
-      event = NBP;
-    }
-  }
 
   // no buttons pressed
   iambic_keyer();
