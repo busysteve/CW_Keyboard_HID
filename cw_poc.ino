@@ -106,7 +106,8 @@ class LCD_Sim
 
     void print_line( char row, const char* str )
     {
-      Keyboard.print( str );
+      Keyboard.println( str );
+      Keyboard.print( '\n' );
     }
 
     void clear_line( char row )
@@ -752,6 +753,7 @@ void send_cwmsg(char *str, uint8_t prn ) {
 void print_line( char ln, char* str )
 {
   Keyboard.println( str );
+  Keyboard.print( '\n' );
 }
 
 // back to run mode
@@ -973,7 +975,6 @@ void menu_trainer_mode() {
 #if CW_OLED
           print_line(0, "TRAINER MODE");
           print_line(1, "LICW method");
-          lcds.setCursor(0, 2);
           lcds.print( lesson_licw );
 #else
           print_line(0, "TRAINER MODE LICW");
@@ -1002,7 +1003,6 @@ void menu_trainer_mode() {
 #if CW_OLED
           print_line(0, "TRAINER MODE");
           print_line(1, "Koch method");
-          lcds.setCursor(0, 2);
           lcds.print( lesson_koch );
 #else
           print_line(0, "TRAINER MODE Koch");
@@ -1031,7 +1031,6 @@ void menu_trainer_mode() {
 #if CW_OLED
           print_line(0, "TRAIN MODE");
           print_line(1, "Estonia method");
-          lcds.setCursor(0, 2);
           lcds.print( lesson_estonia );
 #else
           print_line(0, "TRAIN MODE Estonia");
@@ -1151,8 +1150,13 @@ void menu_trainer_lesson() {
       lcds.print( "LESSON ");
       itoa(lesson,tmpstr,10);
       lcds.print_line(0, tmpstr );
-      lcds.print_line(0, lesson_seq );
 
+      for( int i=0; i<(lesson+1); i++)
+        printchar( lesson_seq[i] );
+
+      printchar('\n');
+
+      //lcds.print('\n');
       dirty = false;
     }
 
@@ -1233,7 +1237,7 @@ void menu_lesson_window() {
       lcds.print("WINDOW ");
       itoa(lesson_window,tmpstr,10);
       lcds.print( tmpstr );
-      lcds.print( "  " );
+      lcds.print( '\n' );
 
       int idx = (lesson+1) - lesson_window;
       if( idx <= 0 || idx <= (lesson+1) )
@@ -1243,7 +1247,7 @@ void menu_lesson_window() {
       char strwindow[51] = {0};
       char window = ( lesson_window == 0 ? (lesson+1) : lesson_window );
       strncpy( strwindow, &lesson_seq[idx], window );
-      strncat( strwindow, "                                                  ", 45-(window) );
+      //strncat( strwindow, "                                                  ", 45-(window) );
 
   #if CW_OLED
       //lcds.setCursor( 0, 1 );    
