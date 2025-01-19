@@ -320,11 +320,11 @@ char lookup_cw(uint8_t addr) {
 // print the ascii char
 
 // update the morse code table address
-void maddr_cmd(uint8_t cmd) {
+void maddr_cmd(uint8_t cmd, bool out = true) {
   if (cmd == 2) {
     // print the tranlated ascii
     // and reset the table address
-    print_cw();
+    print_cw(out);
     maddr = 1;
   }
   else {
@@ -460,7 +460,7 @@ void iambic_keyer( bool out = true ) {
           keyerinfo &= ~DIT_REG;
           keyerinfo |= WAS_DIT;
           ktimer = millis() + dittime;
-          maddr_cmd(0);
+          maddr_cmd(0, out);
           if( realtime_xmit == 0 )
             Serial.print(".");
           else if( realtime_xmit != 0 && xmit_cnt < sizeof( xmit_buf )-1 )
@@ -473,7 +473,7 @@ void iambic_keyer( bool out = true ) {
           keyerinfo &= ~DAH_REG;
           keyerinfo &= ~WAS_DIT;
           ktimer = millis() + dahtime;
-          maddr_cmd(1);
+          maddr_cmd(1, out);
           if( realtime_xmit == 0 )
             Serial.print("-");
           else if( realtime_xmit != 0 && xmit_cnt < sizeof( xmit_buf )-1 )
@@ -514,12 +514,12 @@ void iambic_keyer( bool out = true ) {
             if (keyerinfo & WAS_DIT) {
               // send a dah
               ktimer = millis() + dahtime;
-              maddr_cmd(1);
+              maddr_cmd(1, out);
             }
             else {
               // send a dit
               ktimer = millis() + dittime;
-              maddr_cmd(0);
+              maddr_cmd(0, out);
             }
             keyerinfo = 0;
             keyerstate = KEY_WAIT;
@@ -534,7 +534,7 @@ void iambic_keyer( bool out = true ) {
     case LTR_GAP:
       if (millis() > ktimer) {
         // letter space found so print char
-        maddr_cmd(2);
+        maddr_cmd(2, out);
           if( xmit_cnt < sizeof( xmit_buf )-1 )
           {
             if( realtime_xmit == 0 )
@@ -1517,7 +1517,7 @@ void menu_mode() {
   }
 
   if( last_ch == 'N' )
-    menu_quiz();
+    menu_trainer_mode();
   else if( last_ch == 'A' )
     menu_tone();
   else //( last_ch == 'X')
@@ -1734,16 +1734,6 @@ void loop() {
     }
   }
 
-  if( speed_set_mode == 1 )
-  {
-    // Abort Speed Setting
-    if( !digitalRead(pinDit) && !digitalRead(pinDah) )
-    {
-      speed_set_mode = 0;
-      change_wpm( speed );
-    }
-  }
-
   // no buttons pressed
   iambic_keyer();
 
@@ -1753,6 +1743,5 @@ void loop() {
   if( last_ch == 0x08 && next2last_ch == ';' )
     menu_quiz();
 }
-
 
 
