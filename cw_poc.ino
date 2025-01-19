@@ -750,9 +750,15 @@ void send_cwmsg(char *str, uint8_t prn ) {
   }
 }
 
+void print_line( char* str )
+{
+  Keyboard.print( str );
+  Keyboard.print( '\n' );
+}
+
 void print_line( char ln, char* str )
 {
-  Keyboard.println( str );
+  Keyboard.print( str );
   Keyboard.print( '\n' );
 }
 
@@ -1151,10 +1157,12 @@ void menu_trainer_lesson() {
       itoa(lesson,tmpstr,10);
       lcds.print_line(0, tmpstr );
 
+
       for( int i=0; i<(lesson+1); i++)
         printchar( lesson_seq[i] );
 
       printchar('\n');
+
 
       //lcds.print('\n');
       dirty = false;
