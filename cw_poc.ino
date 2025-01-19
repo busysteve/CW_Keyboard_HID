@@ -101,7 +101,7 @@ class LCD_Sim
     void print( const char* str )
     {
       for( int i=0; str[i] != '\0'; i++ )
-        print( str[i], false );
+        Keyboard.print( str[i] );
     }
 
     void print_line( char row, const char* str )
@@ -151,7 +151,7 @@ char vband_mode = 0;
 #define MINTONE 450
 #define MAXTONE 850
 
-#define MINLESSONMODE 0
+#define MINLESSONMODE 1
 #define MAXLESSONMODE 3
 
 #define MINLESSON 1
@@ -395,6 +395,38 @@ inline bool read_switch() {
 */
   return sw1Pushed;
 }
+
+
+
+
+
+void print( const char* str )
+{
+  for( int i=0; str[i] != '\0'; i++ )
+    Keyboard.print( str[i] );
+}
+
+void print( char ch )
+{
+    Keyboard.print( ch );
+}
+
+
+void println( const char* str )
+{
+  for( int i=0; str[i] != '\0'; i++ )
+    Keyboard.print( str[i] );
+
+    Keyboard.print( '\n' );
+}
+
+void println()
+{
+    Keyboard.print( '\n' );
+}
+
+
+
 
 // read and debounce paddles
 void read_paddles() {
@@ -757,18 +789,18 @@ void print_line( char ch )
 
 void print_line( char ln, char* str )
 {
-  print_line( str );
+  println( str );
 }
 
 void print_line( char ln, char ch )
 {
-  print_line( ch );
+  println( ch );
 }
 
 // back to run mode
 void back2run() {
   menumode = RUN_MODE;
-  lcds.clear();
+  println();
 // print_line(0, "READY >>");
   delay(700);
   clear_line(0);
@@ -783,7 +815,7 @@ void back2run() {
 // increase or decrease keyer speed
 void menu_wpm() {
   uint8_t prev_wpm = keyerwpm;
-  lcds.clear();
+  println();
   print_line(0, "SPEED IS");
 
 
@@ -851,7 +883,7 @@ void menu_wpm() {
 // increase or decrease keyer tone
 void menu_tone() {
   uint16_t prev_tone = keyertone;
-  lcds.clear();
+  println();
   print_line(0, "KEYER TONE IS ");
   // wait until button is released
 
@@ -934,7 +966,7 @@ void menu_trainer_mode() {
 
   bool dirty = true;
 
-  lcds.clear();
+  println();
 
   keyerstate = 0;
   keyerinfo = 0;
@@ -971,107 +1003,41 @@ void menu_trainer_mode() {
     
 
     switch (lesson_mode) {
-      case 0:
-        if( dirty )
-        {
-          lcds.clear();
-          print_line(0, "TRAINER MODE");
-          print_line(1, "None");
-          lcds.print('\n');
-        }
-        break;
       case 1:
         if( dirty )
         {
-          lcds.clear();
-#if CW_OLED
-          print_line(0, "TRAINER MODE");
-          print_line(1, "LICW method");
-          lcds.print( lesson_licw );
-          lcds.print('\n');
-#else
-          print_line(0, "TRAINER MODE LICW");
-
-          char str[21];
-          int x=0;
-
-          memset( str, 0, sizeof(str) );
-          strncpy( str, lesson_licw, 20 );
-          print_line(1, str );
-
-          memset( str, 0, sizeof(str) );
-          strncpy( str, &lesson_licw[20], 20 );
-          print_line(2, str );
-
-          memset( str, 0, sizeof(str) );
-          strncpy( str, &lesson_licw[40], 20 );
-          print_line(3, str );
-#endif
+          println();
+          println("TRAINING MODE");
+          println("LICW method");
+          println( lesson_licw );
+          println();
         }
         break;
       case 2:
         if( dirty )
         {
-          lcds.clear();
-#if CW_OLED
-          print_line(0, "TRAINER MODE");
-          print_line(1, "Koch method");
-          lcds.print( lesson_koch );
-          lcds.print('\n');
-#else
-          print_line(0, "TRAINER MODE Koch");
-
-          char str[21];
-          int x=0;
-
-          memset( str, 0, sizeof(str) );
-          strncpy( str, lesson_koch, 20 );
-          print_line(1, str );
-
-          memset( str, 0, sizeof(str) );
-          strncpy( str, &lesson_koch[20], 20 );
-          print_line(2, str );
-
-          memset( str, 0, sizeof(str) );
-          strncpy( str, &lesson_koch[40], 20 );
-          print_line(3, str );
-#endif
+          println();
+          println("TRAINING MODE");
+          println("Koch method");
+          println( lesson_koch );
+          println();
         }
         break;
       case 3:
         if( dirty )
         {
-          lcds.clear();
-#if CW_OLED
-          print_line(0, "TRAIN MODE");
-          print_line(1, "Estonia method");
-          lcds.print( lesson_estonia );
-          lcds.print('\n');
-#else
-          print_line(0, "TRAIN MODE Estonia");
-
-          char str[21];
-          int x=0;
-
-          memset( str, 0, sizeof(str) );
-          strncpy( str, lesson_estonia, 20 );
-          print_line(1, str );
-
-          memset( str, 0, sizeof(str) );
-          strncpy( str, &lesson_estonia[20], 20 );
-          print_line(2, str );
-
-          memset( str, 0, sizeof(str) );
-          strncpy( str, &lesson_estonia[40], 20 );
-          print_line(3, str );
-#endif
+          println();
+          println("TRAINING MODE");
+          println("ESTONIA method");
+          println( lesson_estonia );
+          println();
         }
         break;
       default:
         if( dirty )
         {
           print_line(0, "TRAINER MODE");
-          lcds.clear();
+          println();
           print_line(1, "ERROR");
         }
         break;
@@ -1118,7 +1084,7 @@ void menu_trainer_mode() {
 // increase or decrease keyer tone
 void menu_trainer_lesson() {
   uint16_t prev_lesson = lesson;
-  lcds.clear();
+  println();
   // wait until button is released
 
   bool dirty = true;
@@ -1202,7 +1168,7 @@ void menu_trainer_lesson() {
 // increase or decrease keyer tone
 void menu_lesson_window() {
   uint16_t prev_lesson_window = lesson_window;
-  lcds.clear();
+  println();
   
   // wait until button is released
   while (sw1Pushed) {
@@ -1318,7 +1284,7 @@ void menu_lesson_window() {
 void menu_trainer_lesson_size() {
 
   uint16_t prev_lesson_size = lesson_size;
-  lcds.clear();
+  println();
   print_line(0, "TRAINING SIZE");
   // wait until button is released
   while (sw1Pushed) {
@@ -1405,7 +1371,7 @@ void menu_trainer_lesson_size() {
 // increase or decrease keyer tone
 void menu_trainer_farns() {
   uint16_t prev_farns = farns;
-  lcds.clear();
+  println();
   print_line(0, "TRAINER");
   print_line(1, "FARNSWORTH");
   // wait until button is released
@@ -1487,7 +1453,7 @@ void menu_trainer_farns() {
 // select keyer mode
 void menu_mode() {
   uint8_t prev_mode = keyermode;
-  lcds.clear();
+  println();
   print_line(0, "KEYER IS");
   // wait until button is released
 
@@ -1555,8 +1521,8 @@ test_again:
     char *quiz = "ALL WORK  AND NO PLAY MAKES  JACK A DULL BOY.  A DULL BOY.   A DULL BOY.";
     myrow = 0;
     mycol = 0;
-    lcds.clear();
-    //lcds.clear();
+    println();
+    //println();
     print_line(0, "QUIZ MODE\n");
 
     delay(2200);
@@ -1616,7 +1582,7 @@ test_again:
     char *msg = "ALL WORK  AND NO PLAY MAKES  JACK A DULL BOY. ";
     myrow = 0;
     mycol = 0;
-    lcds.clear();
+    println();
     // wait until button is released
 
 
