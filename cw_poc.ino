@@ -415,16 +415,7 @@ void read_paddles() {
   {
     keyerinfo |= BOTH_REG;
   }
-/*
-  if( keyerinfo & BOTH_REG )
-  {
-    delay(200);
-    if( !digitalRead(pinDit) && !digitalRead(pinDah) )
-      long_squeeze = 1;
-    else
-      long_squeeze = 0;
-  }
-*/
+
 
   if( vband_mode )
   {
@@ -752,14 +743,26 @@ void send_cwmsg(char *str, uint8_t prn ) {
 
 void print_line( char* str )
 {
-  Keyboard.print( str );
+  char len = strlen( str );
+  for( int x=0; x < len; x++)
+    Keyboard.print(str[x]);
+  Keyboard.print( '\n' );
+}
+
+void print_line( char ch )
+{
+  Keyboard.print( ch );
   Keyboard.print( '\n' );
 }
 
 void print_line( char ln, char* str )
 {
-  Keyboard.print( str );
-  Keyboard.print( '\n' );
+  print_line( str );
+}
+
+void print_line( char ln, char ch )
+{
+  print_line( ch );
 }
 
 // back to run mode
@@ -965,6 +968,8 @@ void menu_trainer_mode() {
     if (lesson_mode < MINLESSONMODE) lesson_mode = MINLESSONMODE;
     if (lesson_mode > MAXLESSONMODE) lesson_mode = MAXLESSONMODE;
 
+    
+
     switch (lesson_mode) {
       case 0:
         if( dirty )
@@ -972,6 +977,7 @@ void menu_trainer_mode() {
           lcds.clear();
           print_line(0, "TRAINER MODE");
           print_line(1, "None");
+          lcds.print('\n');
         }
         break;
       case 1:
@@ -982,6 +988,7 @@ void menu_trainer_mode() {
           print_line(0, "TRAINER MODE");
           print_line(1, "LICW method");
           lcds.print( lesson_licw );
+          lcds.print('\n');
 #else
           print_line(0, "TRAINER MODE LICW");
 
@@ -1010,6 +1017,7 @@ void menu_trainer_mode() {
           print_line(0, "TRAINER MODE");
           print_line(1, "Koch method");
           lcds.print( lesson_koch );
+          lcds.print('\n');
 #else
           print_line(0, "TRAINER MODE Koch");
 
@@ -1038,6 +1046,7 @@ void menu_trainer_mode() {
           print_line(0, "TRAIN MODE");
           print_line(1, "Estonia method");
           lcds.print( lesson_estonia );
+          lcds.print('\n');
 #else
           print_line(0, "TRAIN MODE Estonia");
 
@@ -1070,27 +1079,23 @@ void menu_trainer_mode() {
     
     dirty = false;
 
-    /*
-    while (GOTKEY) {
-      keyerinfo = 0;
-      read_paddles();
-      delay(10);
-    }
-    */
 
-    //keyerinfo = 0;
-
-    //itoa(lesson_mode,tmpstr,10);
-    //strcat(tmpstr," Hz");
-    //print_line(1, tmpstr);
-
-    //keyerstate = 0;
     iambic_keyer(false);
 
   }
   delay(10); // debounce
   // if wpm changed the recalculate the
   // dit timing and and send an OK message
+
+
+  if( lesson_mode == 1 )
+    lesson_seq = lesson_licw;
+  else if( lesson_mode == 3 )
+    lesson_seq = lesson_estonia;
+  else
+    lesson_seq = lesson_koch;
+
+
   if (prev_lesson_mode != lesson_mode) {
     EEPROM[2] = (byte)lesson_mode;
     ditcalc();
@@ -1153,15 +1158,16 @@ void menu_trainer_lesson() {
     if( dirty )
     {
 
-      lcds.print( "LESSON ");
+      Keyboard.print( "LESSON ");
       itoa(lesson,tmpstr,10);
-      lcds.print_line(0, tmpstr );
+      Keyboard.print( tmpstr );
+      Keyboard.print( '\n' );
 
 
       for( int i=0; i<(lesson+1); i++)
-        printchar( lesson_seq[i] );
+        Keyboard.print( lesson_seq[i] );
 
-      printchar('\n');
+      Keyboard.print('\n');
 
 
       //lcds.print('\n');
@@ -1723,5 +1729,4 @@ void loop() {
   if( last_ch == 0x08 && next2last_ch == ';' )
     menu_quiz();
 }
-
 
