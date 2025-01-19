@@ -14,7 +14,7 @@
 #include <Keyboard.h>
 #include <EEPROM.h>
 
-#define VERSION 9
+#define VERSION 10
 
 // Change these to suit your wiring - I use these as next to 
 // Ground to simplify wiring
@@ -106,9 +106,7 @@ class LCD_Sim
 
     void print_line( char row, const char* str )
     {
-      int i;
-      for( i=0; str[i] != '\0'; i++ )
-        print( str[i], false );
+      Keyboard.print( str );
     }
 
     void clear_line( char row )
@@ -146,7 +144,7 @@ char vband_mode = 0;
 
 #define DITCONST  1200       // dit time constant
 #define MAXWPM    35         // max keyer speed
-#define INITWPM   10         // startup keyer speed  // SDM
+#define INITWPM   16         // startup keyer speed  // SDM
 #define MINWPM    5         // min keyer speed
 
 #define MINTONE 450
@@ -181,6 +179,7 @@ char vband_mode = 0;
 // Class instantiation
 char speed_set_mode = 0;
 char speed = 0;
+byte buzz_tone = 650;
 
 uint8_t maddr = 1;
 uint8_t myrow = 0;
@@ -204,6 +203,7 @@ void(*resetFunc) (void) = 0;
 char xmit_buf[620] = {0};
 uint8_t xmit_cnt=0;
 
+char next2last_ch = 0;
 char last_ch = 0;
 
 void print_cw(bool out = true) {
@@ -260,6 +260,7 @@ void print_cw(bool out = true) {
      speed_set_mode = 0;
      EEPROM[1] = keyerwpm;
   }
+  next2last_ch = last_ch;
   last_ch = ch;
 
   Keyboard.flush();
@@ -784,44 +785,65 @@ void menu_wpm() {
   uint8_t prev_wpm = keyerwpm;
   lcds.clear();
   print_line(0, "SPEED IS");
-  // wait until button is released
-  while (sw1Pushed) {
-    read_switch();
-    delay(10);
-  }
-  // loop until button is pressed
-  while (!sw1Pushed) {
-    read_switch();
-    keyerinfo = 0;
-    read_paddles();
-    if (keyerinfo & DAH_REG) {
+
+
+  bool dirty = true;
+  keyerstate = 0;
+  keyerinfo = 0;
+  last_ch = 0;
+
+  iambic_keyer(false);
+  while ( !(last_ch == 'N' || last_ch == 'A' || last_ch == 'X' ) ) {
+
+    if (last_ch == 'T') {
       keyerwpm++;
+      dirty = true;
+      keyerstate = 0;
+      keyerinfo = 0;
+      last_ch = 0;
     }
-    if (keyerinfo & DIT_REG) {
+    if (last_ch == 'E') {
       keyerwpm--;
+      dirty = true;
+      keyerstate = 0;
+      keyerinfo = 0;
+      last_ch = 0;
     }
     // check limits
     if (keyerwpm < MINWPM) keyerwpm = MINWPM;
     if (keyerwpm > MAXWPM) keyerwpm = MAXWPM;
-    while (GOTKEY) {
-      keyerinfo = 0;
-      read_paddles();
-      delay(10);
+
+    if( dirty )
+    {
+      itoa(keyerwpm,tmpstr,10);
+      strcat(tmpstr," WPM");
+      print_line(1, tmpstr);
+      dirty = false;
     }
-    keyerinfo = 0;
-    itoa(keyerwpm,tmpstr,10);
-    strcat(tmpstr," WPM");
-    print_line(1, tmpstr);
+
+ 
+    iambic_keyer(false);
   }
   delay(10); // debounce
-  // if wpm changed the recalculate the
-  // dit timing and and send an OK message
+
+
   if (prev_wpm != keyerwpm) {
     EEPROM[4] = keyerwpm;
     ditcalc();
+  }
+
+  if( last_ch == 'A' )
+  {
+    menu_trainer_farns();
+  } 
+  else if( last_ch == 'N' )
+    menu_tone();
+  else // 'X'
+  {
     send_cwmsg("OK", 0);
     back2run();
-  } else menu_tone();
+  }
+
 }
 
 
@@ -830,52 +852,79 @@ void menu_wpm() {
 void menu_tone() {
   uint16_t prev_tone = keyertone;
   lcds.clear();
-  print_line(0, "KEYER TONE IS");
+  print_line(0, "KEYER TONE IS ");
   // wait until button is released
-  while (sw1Pushed) {
-    read_switch();
-    delay(10);
-  }
-  // loop until button is pressed
-  while (!sw1Pushed) {
-    read_switch();
-    keyerinfo = 0;
-    read_paddles();
-    if (keyerinfo & DAH_REG) {
+
+  bool dirty = true;
+  keyerstate = 0;
+  keyerinfo = 0;
+  last_ch = 0;
+
+  iambic_keyer(false);
+  while ( !(last_ch == 'N' || last_ch == 'A' || last_ch == 'X' ) ) {
+    if (last_ch == 'T') {
       keyertone+=10;
       tone(pinBuzz, keyertone );
       delay( dittime );
       noTone( pinBuzz);
+      dirty = true;
+      keyerstate = 0;
+      keyerinfo = 0;
+      last_ch = 0;
     }
-    if (keyerinfo & DIT_REG) {
+    if (last_ch == 'E') {
       keyertone-=10;
       tone(pinBuzz, keyertone );
       delay( dittime );
       noTone( pinBuzz);
+      dirty = true;
+      keyerstate = 0;
+      keyerinfo = 0;
+      last_ch = 0;
     }
     // check limits
     if (keyertone < MINTONE) keyertone = MINTONE;
     if (keyertone > MAXTONE) keyertone = MAXTONE;
 
-    
-    while (GOTKEY) {
-      keyerinfo = 0;
-      read_paddles();
-      delay(10);
+    if( dirty )
+    {
+      itoa(keyertone,tmpstr,10);
+      strcat(tmpstr," Hz");
+      print_line(1, tmpstr);
+      dirty = false;
     }
-    keyerinfo = 0;
-    itoa(keyertone,tmpstr,10);
-    strcat(tmpstr," Hz");
-    print_line(1, tmpstr);
-  }
+
+    iambic_keyer(false);
+}
   delay(10); // debounce
   // if wpm changed the recalculate the
   // dit timing and and send an OK message
+  
+  
+
+
+
+
+
   if (prev_tone != keyertone) {
-    ditcalc();
+    EEPROM[10] = buzz_tone = (keyertone / 10);
+  }
+
+  if( last_ch == 'A' )
+  {
+    menu_wpm();
+  } 
+  else if( last_ch == 'N' )
+    menu_mode();
+  else // 'X'
+  {
     send_cwmsg("OK", 0);
     back2run();
-  } else menu_mode();
+  }
+
+
+
+
 }
 
 // remote keyer tone menu to
@@ -886,15 +935,14 @@ void menu_trainer_mode() {
   bool dirty = true;
 
   lcds.clear();
-  // wait until button is released
-  while (sw1Pushed) {
-    read_switch();
-    delay(10);
-  }
-  // loop until button is pressed
-  iambic_keyer();
-  while ( last_ch != 'N' && last_ch != 'A' && last_ch != 'X' ) {
-    keyerinfo = 0;
+
+  keyerstate = 0;
+  keyerinfo = 0;
+  last_ch = 0;
+
+  iambic_keyer(false);
+  while ( !(last_ch == 'N' || last_ch == 'A' || last_ch == 'X' ) ) {
+    //keyerinfo = 0;
     //read_paddles();
     if ( last_ch == 'T' ) {
       lesson_mode+=1;
@@ -902,6 +950,9 @@ void menu_trainer_mode() {
       delay( dittime );
       noTone( pinBuzz);
       dirty = true;
+      keyerstate = 0;
+      keyerinfo = 0;
+      last_ch = 0;
     }
     if ( last_ch == 'E' ) {
       lesson_mode-=1;
@@ -909,6 +960,9 @@ void menu_trainer_mode() {
       delay( dittime );
       noTone( pinBuzz);
       dirty = true;
+      keyerstate = 0;
+      keyerinfo = 0;
+      last_ch = 0;
     }
     // check limits
     if (lesson_mode < MINLESSONMODE) lesson_mode = MINLESSONMODE;
@@ -1029,12 +1083,15 @@ void menu_trainer_mode() {
       delay(10);
     }
     */
-    keyerinfo = 0;
+
+    //keyerinfo = 0;
+
     //itoa(lesson_mode,tmpstr,10);
     //strcat(tmpstr," Hz");
     //print_line(1, tmpstr);
 
-    iambic_keyer();
+    //keyerstate = 0;
+    iambic_keyer(false);
 
   }
   delay(10); // debounce
@@ -1043,9 +1100,18 @@ void menu_trainer_mode() {
   if (prev_lesson_mode != lesson_mode) {
     EEPROM[2] = (byte)lesson_mode;
     ditcalc();
+  }
+  if( last_ch == 'A' )
+  {
+    menu_mode();
+  } 
+  else if( last_ch == 'N' )
+    menu_trainer_lesson();
+  else // 'X'
+  {
     send_cwmsg("OK", 0);
     back2run();
-  } else menu_trainer_lesson();
+  }
 }
 
 
@@ -1055,92 +1121,71 @@ void menu_trainer_lesson() {
   uint16_t prev_lesson = lesson;
   lcds.clear();
   // wait until button is released
-  while (sw1Pushed) {
-    read_switch();
-    delay(10);
-  }
 
   bool dirty = true;
 
   // loop until button is pressed
-  while (!sw1Pushed) {
-    read_switch();
-    keyerinfo = 0;
-    read_paddles();
-    if (keyerinfo & DAH_REG) {
+  keyerstate = 0;
+  keyerinfo = 0;
+  last_ch = 0;
+
+  iambic_keyer(false);
+  while ( !(last_ch == 'N' || last_ch == 'A' || last_ch == 'X' ) ) {
+
+    if ( last_ch == 'T' ) {
       lesson+=1;
       tone(pinBuzz, keyertone );
       delay( dittime );
       noTone( pinBuzz);
       dirty = true;
+      keyerstate = 0;
+      keyerinfo = 0;
+      last_ch = 0;
     }
-    if (keyerinfo & DIT_REG) {
+    if ( last_ch == 'E' ) {
       lesson-=1;
       tone(pinBuzz, keyertone );
       delay( dittime );
       noTone( pinBuzz);
       dirty = true;
+      keyerstate = 0;
+      keyerinfo = 0;
+      last_ch = 0;
     }
     // check limits
     if (lesson < MINLESSON) lesson = MINLESSON;
     if (lesson > MAXLESSON) lesson = MAXLESSON;
 
-    
-    while (GOTKEY) {
-      keyerinfo = 0;
-      read_paddles();
-      delay(10);
-    }
-
     if( dirty )
     {
 
-      keyerinfo = 0;
+      lcds.print( "LESSON ");
       itoa(lesson,tmpstr,10);
-      print_line(0, "LESSON ");
-      lcds.setCursor( 8, 0 );
-      lcds.print( tmpstr );
-      lcds.print( "  " );
+      lcds.print_line(0, tmpstr );
+      lcds.print_line(0, lesson_seq );
 
-      char letterseq[51] = {0};
-      strncpy( letterseq, lesson_seq, lesson+1);
-      strncat( letterseq, "                                                  ", 45-(lesson+1) );
-
-  #if CW_OLED
-      lcds.setCursor( 0, 1 );
-      lcds.print( letterseq );
-  #else
-
-      char str[21];
-      int x=0;
-
-      memset( str, 0, sizeof(str) );
-      strncpy( str, letterseq, 20 );
-      print_line(1, str );
-
-      memset( str, 0, sizeof(str) );
-      strncpy( str, &letterseq[20], 20 );
-      print_line(2, str );
-
-      memset( str, 0, sizeof(str) );
-      strncpy( str, &letterseq[40], 20 );
-      print_line(3, str );
-  #endif
       dirty = false;
     }
 
-    read_switch();
-
+    iambic_keyer(false);
   }
   delay(10); // debounce
   // if wpm changed then recalculate the
   // dit timing and and send an OK message
   if (prev_lesson != lesson) {
     EEPROM[1] = (byte)lesson;
+  }
+
+  if( last_ch == 'N' )
+    menu_lesson_window();
+  else if( last_ch == 'A' )
+    menu_trainer_mode();
+  else //( last_ch == 'X')
+  {
     ditcalc();
     send_cwmsg("OK", 0);
     back2run();
-  } else menu_lesson_window();
+  } 
 }
 
 
@@ -1161,36 +1206,38 @@ void menu_lesson_window() {
   bool dirty = true;
 
   // loop until button is pressed
-  while (!sw1Pushed) {
-    read_switch();
-    keyerinfo = 0;
-    read_paddles();
-    if (keyerinfo & DAH_REG) {
+  keyerstate = 0;
+  keyerinfo = 0;
+  last_ch = 0;
+
+  iambic_keyer(false);
+  while ( !(last_ch == 'N' || last_ch == 'A' || last_ch == 'X' ) ) {
+
+    if ( last_ch == 'T' ) {
       lesson_window+=1;
       tone(pinBuzz, keyertone );
       delay( dittime );
       noTone( pinBuzz);
       dirty = true;
+      keyerstate = 0;
+      keyerinfo = 0;
+      last_ch = 0;
     }
-    if (keyerinfo & DIT_REG) {
+    if ( last_ch == 'E' ) {
       lesson_window-=1;
       tone(pinBuzz, keyertone );
       delay( dittime );
       noTone( pinBuzz);
       dirty = true;
+      keyerstate = 0;
+      keyerinfo = 0;
+      last_ch = 0;
     }
     // check limits
     if (lesson_window <= MINWINDOW) lesson_window = MINWINDOW;
     if (lesson_window > MAXWINDOW) lesson_window = MAXWINDOW;
 
     
-    while (GOTKEY) {
-      keyerinfo = 0;
-      read_paddles();
-      delay(10);
-    }
-    keyerinfo = 0;
-
     if( dirty )
     {
       lcds.setCursor( 0, 0 );
@@ -1233,7 +1280,7 @@ void menu_lesson_window() {
       dirty = false;
     }
 
-    read_switch();
+    iambic_keyer(false);
 
   }
   delay(10); // debounce
@@ -1241,10 +1288,19 @@ void menu_lesson_window() {
   // dit timing and and send an OK message
   if (prev_lesson_window != lesson_window) {
     EEPROM[8] = (byte)lesson_window;
+  }
+
+  if( last_ch == 'N' )
+    menu_trainer_lesson_size();
+  else if( last_ch == 'A' )
+    menu_trainer_lesson();
+  else //( last_ch == 'X')
+  {
     ditcalc();
     send_cwmsg("OK", 0);
     back2run();
-  } else menu_trainer_lesson_size();
+  } 
+
 }
 
 
@@ -1253,6 +1309,7 @@ void menu_lesson_window() {
 // remote keyer tone menu to
 // increase or decrease keyer tone
 void menu_trainer_lesson_size() {
+
   uint16_t prev_lesson_size = lesson_size;
   lcds.clear();
   print_line(0, "TRAINING SIZE");
@@ -1262,11 +1319,15 @@ void menu_trainer_lesson_size() {
     delay(10);
   }
   // loop until button is pressed
-  while (!sw1Pushed) {
-    read_switch();
-    keyerinfo = 0;
-    read_paddles();
-    if (keyerinfo & DAH_REG) {
+  bool dirty = true;
+  keyerstate = 0;
+  keyerinfo = 0;
+  last_ch = 0;
+
+  iambic_keyer(false);
+  while ( !(last_ch == 'N' || last_ch == 'A' || last_ch == 'X' ) ) {
+
+    if ( last_ch == 'T' ) {
       if( lesson_size < 10 )
         lesson_size+=1;
       else
@@ -1275,8 +1336,12 @@ void menu_trainer_lesson_size() {
       tone(pinBuzz, keyertone );
       delay( dittime );
       noTone( pinBuzz);
+      keyerstate = 0;
+      keyerinfo = 0;
+      last_ch = 0;
+      dirty = true;
     }
-    if (keyerinfo & DIT_REG) {
+    if ( last_ch == 'E' ) {
       if( lesson_size <= 10 )
         lesson_size-=1;
       else
@@ -1284,34 +1349,46 @@ void menu_trainer_lesson_size() {
       tone(pinBuzz, keyertone );
       delay( dittime );
       noTone( pinBuzz);
+      keyerstate = 0;
+      keyerinfo = 0;
+      last_ch = 0;
+      dirty = true;
     }
     // check limits
     if (lesson_size < MINLESSONCNT) lesson_size = MINLESSONCNT;
     if (lesson_size > MAXLESSONCNT) lesson_size = MAXLESSONCNT;
 
-    
-    while (GOTKEY) {
-      keyerinfo = 0;
-      read_paddles();
-      delay(10);
+    if( dirty )
+    {
+      itoa(lesson_size,tmpstr,10);
+      strcat(tmpstr,"   ");
+      print_line(1, tmpstr);
+      dirty = false;
     }
-    keyerinfo = 0;
-    itoa(lesson_size,tmpstr,10);
-    strcat(tmpstr,"   ");
-    print_line(1, tmpstr);
 
-    read_switch();
 
+    iambic_keyer(false);
   }
   delay(10); // debounce
+
+
   // if wpm changed the recalculate the
   // dit timing and and send an OK message
+
   if (prev_lesson_size != lesson_size) {
     EEPROM[6] = (byte)lesson_size;
+  }
+
+  if( last_ch == 'N' )
+    menu_trainer_farns();
+  else if( last_ch == 'A' )
+    menu_lesson_window();
+  else //( last_ch == 'X')
+  {
     ditcalc();
     send_cwmsg("OK", 0);
     back2run();
-  } else menu_trainer_farns();
+  } 
 }
 
 
@@ -1330,122 +1407,75 @@ void menu_trainer_farns() {
     delay(10);
   }
   // loop until button is pressed
-  while (!sw1Pushed) {
-    read_switch();
-    keyerinfo = 0;
-    read_paddles();
-    if (keyerinfo & DAH_REG) {
+  bool dirty = true;
+  keyerstate = 0;
+  keyerinfo = 0;
+  last_ch = 0;
+
+  iambic_keyer(false);
+  while ( !(last_ch == 'N' || last_ch == 'A' || last_ch == 'X' ) ) {
+
+    if (last_ch == 'T') {
       farns+=1;
       tone(pinBuzz, keyertone );
       delay( dittime );
       noTone( pinBuzz);
+      keyerstate = 0;
+      keyerinfo = 0;
+      last_ch = 0;
+      dirty = true;
     }
-    if (keyerinfo & DIT_REG) {
+    if (last_ch == 'E') {
       farns-=1;
       tone(pinBuzz, keyertone );
       delay( dittime );
       noTone( pinBuzz);
+      keyerstate = 0;
+      keyerinfo = 0;
+      last_ch = 0;
+      dirty = true;
     }
     // check limits
     if (farns < 0) farns = 0;
     if (farns > 15) farns = 15;
 
     
-    while (GOTKEY) {
-      keyerinfo = 0;
-      read_paddles();
-      delay(10);
+    if( dirty )
+    {
+      itoa(farns,tmpstr,10);
+      strcat(tmpstr,"   ");
+      print_line(2, tmpstr);
+      dirty = false;
     }
-    keyerinfo = 0;
-    itoa(farns,tmpstr,10);
-    strcat(tmpstr,"   ");
-    print_line(2, tmpstr);
 
-    read_switch();
 
+    iambic_keyer(false);
   }
   delay(10); // debounce
   // if wpm changed the recalculate the
   // dit timing and and send an OK message
+
+
   if (prev_farns != farns) {
     EEPROM[3] = farns;
+  }
+
+  if( last_ch == 'N' )
+    menu_wpm();
+  else if( last_ch == 'A' )
+    menu_trainer_lesson_size();
+  else //( last_ch == 'X')
+  {
     ditcalc();
     send_cwmsg("OK", 0);
     back2run();
-  } else menu_wpm();
+  } 
+
 }
 
 
 
 
-
-/*
-
-// xmit mode
-// increase or decrease keyer tone
-void menu_buzzer_mode() {
-  char prev_mode = buzz_mode;
-  lcds.clear();
-  print_line(0, "BUZZER MODE");
-  // wait until button is released
-  while (sw1Pushed) {
-    read_switch();
-    delay(10);
-  }
-  // loop until button is pressed
-  while (!sw1Pushed) {
-    read_switch();
-    keyerinfo = 0;
-    read_paddles();
-    if (keyerinfo & DAH_REG) {
-      buzz_mode++;
-      tone(pinBuzz, remotetone );
-      delay( dittime );
-      noTone( pinBuzz);
-    }
-    if (keyerinfo & DIT_REG) {
-      buzz_mode--;
-      tone(pinBuzz, remotetone );
-      delay( dittime );
-      noTone( pinBuzz);
-    }
-    // check limits
-    if (buzz_mode < 0) buzz_mode = 0;
-    if (buzz_mode > 1) buzz_mode = 1;
-
-    switch( buzz_mode )
-    {
-      case 0:
-        print_line(1, "INTERNAL");
-        pinBuzz = pinInnerBuzz;
-      break;
-      case 1:
-        print_line(1, "EXTERNAL");
-        pinBuzz = pinOuterBuzz;
-      break;
-      default:
-        print_line(1, "ERROR");
-      break;
-    }
-    
-    while (GOTKEY) {
-      keyerinfo = 0;
-      read_paddles();
-      delay(10);
-    }
-    keyerinfo = 0;
-  }
-  delay(10); // debounce
-  // if wpm changed the recalculate the
-  // dit timing and and send an OK message
-  if (prev_mode != buzz_mode) {
-    EEPROM[7] = buzz_mode;
-    ditcalc();
-    send_cwmsg("OK", 0);
-    back2run();
-  } else menu_mode();
-}
-*/
 
 // select keyer mode
 void menu_mode() {
@@ -1453,50 +1483,65 @@ void menu_mode() {
   lcds.clear();
   print_line(0, "KEYER IS");
   // wait until button is released
-  while (sw1Pushed) {
-    read_switch();
-    delay(10);
-  }
+
   // loop until button is pressed
-  while (!sw1Pushed) {
-    read_switch();
-    keyerinfo = 0;
-    read_paddles();
-    if (keyerinfo & KEY_REG) {
-      keyermode++;
-    }
-    if (keyermode > IAMBICB) {
-      keyermode = IAMBICA;
-    }
-    while (GOTKEY) {
+  bool dirty = true;
+  keyerstate = 0;
+  keyerinfo = 0;
+  last_ch = 0;
+
+  iambic_keyer(false);
+  while ( !(last_ch == 'N' || last_ch == 'A' || last_ch == 'X' ) ) {
+
+    if (last_ch == 'T' || last_ch == 'E') {
+      keyermode = keyermode == IAMBICA ? IAMBICB : IAMBICA;
+      keyerstate = 0;
       keyerinfo = 0;
-      read_paddles();
-      delay(10);
+      last_ch = 0;
+      dirty = true;
     }
-    keyerinfo = 0;
-    switch (keyermode) {
-      case IAMBICA:
-        print_line(1, "IAMBIC A");
-        break;
-      case IAMBICB:
-        print_line(1, "IAMBIC B");
-        break;
-      default:
-        print_line(1, "ERROR");
-        break;
+
+    if( dirty )
+    {
+      switch (keyermode) {
+        case IAMBICA:
+          print_line(1, "IAMBIC A");
+          break;
+        case IAMBICB:
+          print_line(1, "IAMBIC B");
+          break;
+        default:
+          print_line(1, "ERROR");
+          break;
+      }
+      dirty = false;
     }
+
+    iambic_keyer(false);
+
   }
-  delay(10); // debounce
+
+
   if (prev_mode != keyermode) 
   {
-    EEPROM[5] = keyermode;
-    send_cwmsg("OK", 0);
+    EEPROM[3] = farns;
   }
-  back2run();
+
+  if( last_ch == 'N' )
+    menu_quiz();
+  else if( last_ch == 'A' )
+    menu_tone();
+  else //( last_ch == 'X')
+  {
+    ditcalc();
+    send_cwmsg("OK", 0);
+    back2run();
+  } 
+
 }
 
 // send a message
-void menu_msg() {
+void menu_quiz() {
 test_again:
   if( lesson_mode )
   {
@@ -1551,15 +1596,21 @@ test_again:
     quiz[len] = 0;
     send_cwmsg(quiz, 1);
 
-    // loop until button is pressed
-    while (!sw1Pushed) {
+  keyerstate = 0;
+  keyerinfo = 0;
+  last_ch = 0;
 
-      if( !digitalRead(pinDit) && !digitalRead(pinDah) )
-        goto test_again;
+  iambic_keyer(false);
+  while ( !(last_ch == 'E' ) ) {
 
-      read_switch();
-      delay(1);
+    if (last_ch == 'T') {
+      goto test_again;
     }
+
+    iambic_keyer(false);
+  }
+
+
     back2run();
   }
   else
@@ -1569,36 +1620,23 @@ test_again:
     mycol = 0;
     lcds.clear();
     // wait until button is released
-    while (sw1Pushed) {
-      read_switch();
-      delay(1);
-    }
-    // loop until button is pressed
-    while (!sw1Pushed) {
+
+
+    keyerstate = 0;
+    keyerinfo = 0;
+    last_ch = 0;
+
+    iambic_keyer(false);
+    while ( !(last_ch == 'E' ) ) {
+
       send_cwmsg(msg, 1);
+
+      iambic_keyer(false);
     }
+
     back2run();
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1612,49 +1650,6 @@ void setup() {
   // startup init
   Serial.begin(BAUDRATE);     // init serial/debug port
 
-  if( EEPROM[0] != VERSION )
-  {
-    EEPROM[0] = VERSION;
-    change_wpm(INITWPM);        // init keyer speed
-  }
-  else
-  {
-    if( !digitalRead(pinDit) && !digitalRead(pinDah) )
-    {
-      speed_set_mode = 0;
-      vband_mode = 0;
-      change_wpm( INITWPM );
-      EEPROM[4] = INITWPM;
-      EEPROM[9] = 0;
-
-      refresh_reset();
-    }
-    else if( !digitalRead(pinDit) && digitalRead(pinDah) )
-    {
-      vband_mode = 1;
-      EEPROM[9] = vband_mode;
-
-      refresh_reset();
-    }
-    else if( digitalRead(pinDit) && !digitalRead(pinDah) )
-    {
-      vband_mode = 0;
-      EEPROM[9] = vband_mode;
-
-      refresh_reset();
-    }
-    else
-    {
-      char w = EEPROM[4];
-      if( w > MAXWPM || w < MINWPM )
-        change_wpm(INITWPM);
-      else
-        change_wpm(EEPROM[4]);
-
-      vband_mode = EEPROM[9];
-    }
-  }
-
 
   byte val = EEPROM[0];
   if( val != ver )
@@ -1662,13 +1657,15 @@ void setup() {
     EEPROM[0] = ver;
     EEPROM[1] = lesson = (byte) 5;
     EEPROM[2] = lesson_mode = (byte) 1;
-    EEPROM[3] = farns = (byte) 12;
+    EEPROM[3] = farns = (byte) 8;
     EEPROM[4] = keyerwpm = (byte) INITWPM;
     EEPROM[5] = keyermode = (byte) IAMBICA;
     EEPROM[6] = lesson_size = (byte) MAXLESSONCNT;
     EEPROM[7] = buzz_mode = (byte) 1;
     EEPROM[8] = lesson_window = (byte) 0;
     EEPROM[9] = vband_mode = (byte) 0;
+    EEPROM[10] = buzz_tone = (byte) 65;
+
     //EEPROM.write()
   }
   else
@@ -1682,8 +1679,11 @@ void setup() {
     buzz_mode = EEPROM[7];
     lesson_window = EEPROM[8];
     vband_mode = EEPROM[9];
+    buzz_tone = EEPROM[10];
     //EEPROM.write()
   }
+
+  keyertone = buzz_tone * 10;
 
   if( lesson_mode == 1 )
     lesson_seq = lesson_licw;
@@ -1765,10 +1765,14 @@ void loop() {
   }
 
   // no buttons pressed
-  char last = last_ch;
   iambic_keyer();
-  char next = last_ch;
 
-  if( last == ';' && next == ';' )
+  if( last_ch == ';' && next2last_ch == ';' )
     menu_trainer_mode();
+
+  if( last_ch == ';' && next2last_ch == 0x08 )
+    menu_quiz();
 }
+
+
+
