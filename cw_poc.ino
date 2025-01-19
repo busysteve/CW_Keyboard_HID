@@ -740,21 +740,10 @@ void clear_line( char ch )
 
 
 // transmit a CW message
-void send_cwmsg(char *str, uint8_t prn) {
+void send_cwmsg(char *str, uint8_t prn ) {
   for (uint8_t i=0; str[i]; i++) {
     if (prn) {
       printchar(str[i]);
-
-      /*
-      u8g.firstPage();  
-      do {
-        draw();
-      } while( u8g.nextPage() );
-      */
-
-
-      read_switch();
-      if (sw1Pushed) break;
     }
     send_cwchr(str[i]);
   }
