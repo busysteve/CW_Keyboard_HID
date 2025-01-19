@@ -1770,7 +1770,7 @@ void loop() {
   if( last_ch == ';' && next2last_ch == ';' )
     menu_trainer_mode();
 
-  if( last_ch == ';' && next2last_ch == 0x08 )
+  if( last_ch == 0x08 && next2last_ch == ';' )
     menu_quiz();
 }
 
