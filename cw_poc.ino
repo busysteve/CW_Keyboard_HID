@@ -1549,18 +1549,10 @@ test_again:
     myrow = 0;
     mycol = 0;
     lcds.clear();
-    // wait until button is released
-    while (sw1Pushed) {
-      read_switch();
-      delay(1);
-    }
-
     //lcds.clear();
     print_line(0, "QUIZ MODE");
 
     delay(2200);
-
-    lcds.clear();
 
 
     char* lesson_seq;
@@ -1596,15 +1588,14 @@ test_again:
     quiz[len] = 0;
     send_cwmsg(quiz, 1);
 
-  keyerstate = 0;
-  keyerinfo = 0;
-  last_ch = 0;
+    keyerstate = 0;
+    keyerinfo = 0;
+    last_ch = 0;
 
-  iambic_keyer(false);
-  while ( !(last_ch == 'E' ) ) {
-
-    if (last_ch == 'T') {
-      goto test_again;
+    iambic_keyer(false);
+    while ( !(last_ch == 'E' ) ) {
+      if (last_ch == 'T') {
+        goto test_again;
     }
 
     iambic_keyer(false);
