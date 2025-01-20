@@ -295,7 +295,7 @@ char realtime_xmit = 0;
 short keyertone = 650;
 short remotetone = 750;
 
-byte lesson = 1;
+char lesson = 1;
 byte lesson_size = MAXLESSONCNT;
 byte lesson_mode = 0;
 
@@ -383,27 +383,16 @@ inline bool read_switch() {
   delay(20);
   if( sw1Pushed )
     sw1Pushed = ( !digitalRead(pinDit) && !digitalRead(pinDah) );
-/*
-  read_paddles();
-  if( long_squeeze )
-  {
-    read_paddles();
-    if( long_squeeze )
-      sw1Pushed = 1;
-  }
-  long_squeeze = 0;
-*/
+
   return sw1Pushed;
 }
-
-
 
 
 
 void print( const char* str )
 {
   for( int i=0; str[i] != '\0'; i++ )
-    Keyboard.print( str[i] );
+    print( str[i] );
 }
 
 void print( char ch )
@@ -417,12 +406,25 @@ void println( const char* str )
   for( int i=0; str[i] != '\0'; i++ )
     Keyboard.print( str[i] );
 
-    Keyboard.print( '\n' );
+    println();
+}
+
+void println( char ch )
+{
+    Keyboard.print( ch );
+
+    println();
 }
 
 void println()
 {
-    Keyboard.print( '\n' );
+    delay(5);
+    Keyboard.press( KEY_KP_ENTER );
+    delay(5);
+    Keyboard.release( KEY_KP_ENTER );
+    delay(5);
+    //Keyboard.print( '\r' );
+    //Keyboard.print( '\n' );
 }
 
 
@@ -803,9 +805,9 @@ void back2run() {
   println();
 // print_line(0, "READY >>");
   delay(700);
-  clear_line(0);
-  myrow = 0;
-  mycol = 0;
+
+  println();
+
 }
 
 
@@ -978,9 +980,9 @@ void menu_trainer_mode() {
     //read_paddles();
     if ( last_ch == 'T' ) {
       lesson_mode+=1;
-      tone(pinBuzz, keyertone );
-      delay( dittime );
-      noTone( pinBuzz);
+      //tone(pinBuzz, keyertone );
+      //delay( dittime );
+      //noTone( pinBuzz);
       dirty = true;
       keyerstate = 0;
       keyerinfo = 0;
@@ -988,9 +990,9 @@ void menu_trainer_mode() {
     }
     if ( last_ch == 'E' ) {
       lesson_mode-=1;
-      tone(pinBuzz, keyertone );
-      delay( dittime );
-      noTone( pinBuzz);
+      //tone(pinBuzz, keyertone );
+      //delay( dittime );
+      //noTone( pinBuzz);
       dirty = true;
       keyerstate = 0;
       keyerinfo = 0;
@@ -1007,7 +1009,7 @@ void menu_trainer_mode() {
         if( dirty )
         {
           println();
-          println("TRAINING MODE");
+          println("TRAINING order");
           println("LICW method");
           println( lesson_licw );
           println();
@@ -1017,7 +1019,7 @@ void menu_trainer_mode() {
         if( dirty )
         {
           println();
-          println("TRAINING MODE");
+          println("TRAINING order");
           println("Koch method");
           println( lesson_koch );
           println();
@@ -1027,7 +1029,7 @@ void menu_trainer_mode() {
         if( dirty )
         {
           println();
-          println("TRAINING MODE");
+          println("TRAINING order");
           println("ESTONIA method");
           println( lesson_estonia );
           println();
@@ -1036,9 +1038,10 @@ void menu_trainer_mode() {
       default:
         if( dirty )
         {
-          print_line(0, "TRAINER MODE");
           println();
-          print_line(1, "ERROR");
+          println("TRAINER order");
+          println("ERROR");
+          println();
         }
         break;
     }
@@ -1099,9 +1102,9 @@ void menu_trainer_lesson() {
 
     if ( last_ch == 'T' ) {
       lesson+=1;
-      tone(pinBuzz, keyertone );
-      delay( dittime );
-      noTone( pinBuzz);
+      //tone(pinBuzz, keyertone );
+      //delay( dittime );
+      //noTone( pinBuzz);
       dirty = true;
       keyerstate = 0;
       keyerinfo = 0;
@@ -1109,9 +1112,9 @@ void menu_trainer_lesson() {
     }
     if ( last_ch == 'E' ) {
       lesson-=1;
-      tone(pinBuzz, keyertone );
-      delay( dittime );
-      noTone( pinBuzz);
+      //tone(pinBuzz, keyertone );
+      //delay( dittime );
+      //noTone( pinBuzz);
       dirty = true;
       keyerstate = 0;
       keyerinfo = 0;
@@ -1124,16 +1127,14 @@ void menu_trainer_lesson() {
     if( dirty )
     {
 
-      Keyboard.print( "LESSON ");
-      itoa(lesson,tmpstr,10);
-      Keyboard.print( tmpstr );
-      Keyboard.print( '\n' );
+      sprintf( tmpstr, "LESSON %d", lesson);
+      //itoa((int)lesson,tmpstr,10);
+      println( tmpstr );
 
+      for( int i=0; i<(lesson+1) && i<=40; i++)
+        print( lesson_seq[i] );
 
-      for( int i=0; i<(lesson+1); i++)
-        Keyboard.print( lesson_seq[i] );
-
-      Keyboard.print('\n');
+      println();
 
 
       //lcds.print('\n');
@@ -1560,6 +1561,8 @@ test_again:
     }
     quiz[len] = 0;
     send_cwmsg(quiz, 1);
+
+    println();
 
     keyerstate = 0;
     keyerinfo = 0;
