@@ -185,7 +185,7 @@ byte buzz_tone = 650;
 uint8_t maddr = 1;
 uint8_t myrow = 0;
 uint8_t mycol = 0;
-char tmpstr[12];
+char tmpstr[60];
 
 char lookup_cw(uint8_t x);
 void print_cw(bool);
@@ -423,8 +423,9 @@ void println()
     delay(5);
     Keyboard.release( KEY_KP_ENTER );
     delay(5);
-    //Keyboard.print( '\r' );
-    //Keyboard.print( '\n' );
+    Keyboard.print( '\r' );
+    Keyboard.print( '\n' );
+    delay(5);
 }
 
 
@@ -1002,46 +1003,56 @@ void menu_trainer_mode() {
     if (lesson_mode < MINLESSONMODE) lesson_mode = MINLESSONMODE;
     if (lesson_mode > MAXLESSONMODE) lesson_mode = MAXLESSONMODE;
 
-    
+
+    char* lesson_seq;
+
+    if( lesson_mode == 1 )
+      lesson_seq = lesson_licw;
+    else if( lesson_mode == 3 )
+      lesson_seq = lesson_estonia;
+    else
+      lesson_seq = lesson_koch;
+
+
 
     switch (lesson_mode) {
       case 1:
         if( dirty )
         {
           println();
-          println("TRAINING order");
-          println("LICW method");
+          println("TRAINING order ");
+          println("LICW method ");
           println( lesson_licw );
-          println();
+          println("");
         }
         break;
       case 2:
         if( dirty )
         {
           println();
-          println("TRAINING order");
-          println("Koch method");
+          println("TRAINING order ");
+          println("Koch method ");
           println( lesson_koch );
-          println();
+          println("");
         }
         break;
       case 3:
         if( dirty )
         {
           println();
-          println("TRAINING order");
-          println("ESTONIA method");
+          println("TRAINING order ");
+          println("ESTONIA method ");
           println( lesson_estonia );
-          println();
+          println("");
         }
         break;
       default:
         if( dirty )
         {
           println();
-          println("TRAINER order");
-          println("ERROR");
-          println();
+          println("TRAINER order ");
+          println("ERROR ");
+          println("");
         }
         break;
     }
@@ -1124,17 +1135,33 @@ void menu_trainer_lesson() {
     if (lesson < MINLESSON) lesson = MINLESSON;
     if (lesson > MAXLESSON) lesson = MAXLESSON;
 
+
+    char* lesson_seq;
+
+    if( lesson_mode == 1 )
+      lesson_seq = lesson_licw;
+    else if( lesson_mode == 3 )
+      lesson_seq = lesson_estonia;
+    else
+      lesson_seq = lesson_koch;
+
+
+
+
+
     if( dirty )
     {
 
-      sprintf( tmpstr, "LESSON %d", lesson);
+      println(" ");
+
+      sprintf( tmpstr, "LESSON %d ", lesson);
       //itoa((int)lesson,tmpstr,10);
       println( tmpstr );
 
       for( int i=0; i<(lesson+1) && i<=40; i++)
         print( lesson_seq[i] );
 
-      println();
+      println("");
 
 
       //lcds.print('\n');
@@ -1214,43 +1241,26 @@ void menu_lesson_window() {
     
     if( dirty )
     {
-      lcds.setCursor( 0, 0 );
-      lcds.print("WINDOW ");
+      println("");
+
+      print("WINDOW ");
       itoa(lesson_window,tmpstr,10);
-      lcds.print( tmpstr );
-      lcds.print( '\n' );
+      print( tmpstr );
+      println( "" );
 
       int idx = (lesson+1) - lesson_window;
       if( idx <= 0 || idx <= (lesson+1) )
         idx = 0;
 
-      lcds.setCursor(0, 1);
+
       char strwindow[51] = {0};
       char window = ( lesson_window == 0 ? (lesson+1) : lesson_window );
       strncpy( strwindow, &lesson_seq[idx], window );
       //strncat( strwindow, "                                                  ", 45-(window) );
 
-  #if CW_OLED
-      //lcds.setCursor( 0, 1 );    
-      lcds.print( strwindow );
-  #else
+      println( strwindow );
+      println( "" );
 
-      char str[21];
-      int x=0;
-
-      memset( str, 0, sizeof(str) );
-      strncpy( str, strwindow, 20 );
-      print_line(1, str );
-
-      memset( str, 0, sizeof(str) );
-      strncpy( str, &strwindow[20], 20 );
-      print_line(2, str );
-
-      memset( str, 0, sizeof(str) );
-      strncpy( str, &strwindow[40], 20 );
-      print_line(3, str );
-
-  #endif
       dirty = false;
     }
 
@@ -1260,7 +1270,7 @@ void menu_lesson_window() {
   delay(10); // debounce
   // if wpm changed the recalculate the
   // dit timing and and send an OK message
-  if (prev_lesson_window != lesson_window) {
+  if ( prev_lesson_window != lesson_window ) {
     EEPROM[8] = (byte)lesson_window;
   }
 
@@ -1286,12 +1296,14 @@ void menu_trainer_lesson_size() {
 
   uint16_t prev_lesson_size = lesson_size;
   println();
-  print_line(0, "TRAINING SIZE");
+  println("TRAINING SIZE ");
   // wait until button is released
   while (sw1Pushed) {
     read_switch();
     delay(10);
   }
+  println();
+
   // loop until button is pressed
   bool dirty = true;
   keyerstate = 0;
@@ -1334,12 +1346,11 @@ void menu_trainer_lesson_size() {
 
     if( dirty )
     {
-      itoa(lesson_size,tmpstr,10);
-      strcat(tmpstr,"   ");
-      print_line(1, tmpstr);
+      sprintf( tmpstr, "Lesson size %d ", lesson_size );
+      println( tmpstr );
+      println( "" );
       dirty = false;
     }
-
 
     iambic_keyer(false);
   }
@@ -1516,6 +1527,7 @@ void menu_mode() {
 
 // send a message
 void menu_quiz() {
+  char prev_wpm = keyerwpm;
 test_again:
   if( lesson_mode )
   {
@@ -1524,7 +1536,11 @@ test_again:
     mycol = 0;
     println();
     //println();
-    print_line(0, "QUIZ MODE\n");
+    print( "QUIZ MODE - ");
+    char tmp[4];
+    itoa( (int)keyerwpm, tmp, 10 );
+    print( tmp );
+    println( " WPM\n");
 
     delay(2200);
 
@@ -1560,6 +1576,7 @@ test_again:
         quiz[i] = (random() % 4) == 0 && quiz[i-1] != ' ' && lesson_size > 6 ? ' ' : lesson_seq[ ( random() % (window) ) ];
     }
     quiz[len] = 0;
+repeat:    
     send_cwmsg(quiz, 1);
 
     println();
@@ -1569,14 +1586,33 @@ test_again:
     last_ch = 0;
 
     iambic_keyer(false);
-    while ( !(last_ch == 'E' ) ) {
+    while ( !(last_ch == 'X' ) ) {
       if (last_ch == 'T') {
+        keyerwpm++;
         goto test_again;
+      }
+
+      else if (last_ch == 'E') {
+        keyerwpm--;
+        goto test_again;
+      }
+
+      else if (last_ch == 'N') {
+        goto test_again;
+      }
+
+
+      else if (last_ch == 'R') {
+        keyerwpm--;
+        println("Repeating...");
+        delay(1500);
+        goto repeat;
+      }
+
+      iambic_keyer(false);
     }
 
-    iambic_keyer(false);
-  }
-
+    keyerwpm = prev_wpm;
 
     back2run();
   }
