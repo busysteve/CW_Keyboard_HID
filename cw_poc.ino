@@ -22,10 +22,10 @@
 #define DAH_PIN 2
 #define ledPin LED_BUILTIN
 
-#define VBAND_DAH KEY_RIGHT_CTRL
-#define VBAND_DIT KEY_LEFT_CTRL
-//#define VBAND_DAH 0xe2
-//#define VBAND_DIT 0xe1
+//#define VBAND_DAH KEY_RIGHT_CTRL
+//#define VBAND_DIT KEY_LEFT_CTRL
+#define VBAND_DAH 0xe2
+#define VBAND_DIT 0xe1
 
 #define BUZZ_PIN   4
 const uint8_t pinDit  = DIH_PIN;  // dit key input
