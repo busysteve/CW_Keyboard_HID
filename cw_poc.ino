@@ -14,6 +14,7 @@
 #include <Keyboard.h>
 #include <EEPROM.h>
 
+const char version[] = "1.0.3";
 #define VERSION 10
 
 // Change these to suit your wiring - I use these as next to 
@@ -198,7 +199,7 @@ void read_paddles(void);
 void iambic_keyer(bool);
 void straight_key(void);
 void send_cwchr(char ch);
-void ditcalc(void);
+void ditcalc(char);
 void doError(void);
 void(*resetFunc) (void) = 0;
 
@@ -400,8 +401,9 @@ void print( const char* str )
 
 void print( char ch )
 {
-    Keyboard.print( ch );
-    delay(1);
+  delay(20);
+  Keyboard.print( ch );
+  delay(20);
 }
 
 
@@ -423,12 +425,7 @@ void println( char ch )
 void println()
 {
     delay(5);
-    Keyboard.press( KEY_KP_ENTER );
-    delay(5);
-    Keyboard.release( KEY_KP_ENTER );
-    delay(5);
-    Keyboard.print( '\r' );
-    Keyboard.print( '\n' );
+    print( '\n' );
     delay(5);
 }
 
@@ -713,15 +710,19 @@ void send_cwchr(char ch) {
 
 
 // initial keyer speed
-void ditcalc() {
-  int farn = keyerwpm - farns;
-  if( farn <= 0 ) farn = keyerwpm;
+void ditcalc( char keywpm = 0 ) {
+  
+  if( keywpm <= 0 )
+    keywpm = keyerwpm;
 
-  dittime    = DITCONST/keyerwpm;
-  dahtime    = (DITCONST * 3)/keyerwpm;
-  lettergap1 = (DITCONST * 2.5)/(keyerwpm);
+  int farn = keywpm - farns;
+  if( farn <= 0 ) farn = keywpm;
+
+  dittime    = DITCONST/keywpm;
+  dahtime    = (DITCONST * 3)/keywpm;
+  lettergap1 = (DITCONST * 2.5)/(keywpm);
   lettergap2   = (DITCONST * 3)/(farn);
-  wordgap1   = (DITCONST * 5)/(keyerwpm);
+  wordgap1   = (DITCONST * 5)/(keywpm);
   wordgap2   = (DITCONST * 7)/(farn);
 }
 
@@ -1535,6 +1536,8 @@ void menu_quiz() {
 test_again:
   if( lesson_mode )
   {
+    ditcalc();
+
     char *quiz = "ALL WORK  AND NO PLAY MAKES  JACK A DULL BOY.  A DULL BOY.   A DULL BOY.";
     myrow = 0;
     mycol = 0;
@@ -1583,6 +1586,7 @@ test_again:
 repeat:    
     send_cwmsg(quiz, 1);
 
+    ditcalc(prev_wpm);
     println();
 
     keyerstate = 0;
@@ -1607,7 +1611,6 @@ repeat:
 
 
       else if (last_ch == 'R') {
-        keyerwpm--;
         println("Repeating...");
         delay(1500);
         goto repeat;
@@ -1617,7 +1620,7 @@ repeat:
     }
 
     keyerwpm = prev_wpm;
-
+    ditcalc();
     back2run();
   }
   else
@@ -1737,7 +1740,15 @@ void loop() {
   iambic_keyer();
 
   if( last_ch == ';' && next2last_ch == ';' )
+  {
+    println();
+    println( "CW Keyboard");
+    println( "Version");
+    println( version );
+    println();
+
     menu_trainer_mode();
+  }
 
   if( last_ch == '\n' && next2last_ch == ';' )
     menu_quiz();
