@@ -27,7 +27,10 @@
 #define VBAND_DAH 0xe2
 #define VBAND_DIT 0xe1
 
-#define BUZZ_PIN   4
+#define BUZZ_GND   A1
+#define BUZZ_PIN   A3
+//#define BUZZ_PIN   4
+
 const uint8_t pinDit  = DIH_PIN;  // dit key input
 const uint8_t pinDah  = DAH_PIN;  // dah key input
 const uint8_t pinSw1  = 7;  // push-button switch
@@ -398,6 +401,7 @@ void print( const char* str )
 void print( char ch )
 {
     Keyboard.print( ch );
+    delay(1);
 }
 
 
@@ -411,7 +415,7 @@ void println( const char* str )
 
 void println( char ch )
 {
-    Keyboard.print( ch );
+    print( ch );
 
     println();
 }
@@ -1216,9 +1220,9 @@ void menu_lesson_window() {
 
     if ( last_ch == 'T' ) {
       lesson_window+=1;
-      tone(pinBuzz, keyertone );
-      delay( dittime );
-      noTone( pinBuzz);
+      //tone(pinBuzz, keyertone );
+      //delay( dittime );
+      //noTone( pinBuzz);
       dirty = true;
       keyerstate = 0;
       keyerinfo = 0;
@@ -1226,9 +1230,9 @@ void menu_lesson_window() {
     }
     if ( last_ch == 'E' ) {
       lesson_window-=1;
-      tone(pinBuzz, keyertone );
-      delay( dittime );
-      noTone( pinBuzz);
+      //tone(pinBuzz, keyertone );
+      //delay( dittime );
+      //noTone( pinBuzz);
       dirty = true;
       keyerstate = 0;
       keyerinfo = 0;
@@ -1319,9 +1323,9 @@ void menu_trainer_lesson_size() {
       else
         lesson_size+=10;
 
-      tone(pinBuzz, keyertone );
-      delay( dittime );
-      noTone( pinBuzz);
+      //tone(pinBuzz, keyertone );
+      //delay( dittime );
+      //noTone( pinBuzz);
       keyerstate = 0;
       keyerinfo = 0;
       last_ch = 0;
@@ -1332,9 +1336,9 @@ void menu_trainer_lesson_size() {
         lesson_size-=1;
       else
         lesson_size-=10;
-      tone(pinBuzz, keyertone );
-      delay( dittime );
-      noTone( pinBuzz);
+      //tone(pinBuzz, keyertone );
+      //delay( dittime );
+      //noTone( pinBuzz);
       keyerstate = 0;
       keyerinfo = 0;
       last_ch = 0;
@@ -1402,9 +1406,9 @@ void menu_trainer_farns() {
 
     if (last_ch == 'T') {
       farns+=1;
-      tone(pinBuzz, keyertone );
-      delay( dittime );
-      noTone( pinBuzz);
+      //tone(pinBuzz, keyertone );
+      //delay( dittime );
+      //noTone( pinBuzz);
       keyerstate = 0;
       keyerinfo = 0;
       last_ch = 0;
@@ -1412,9 +1416,9 @@ void menu_trainer_farns() {
     }
     if (last_ch == 'E') {
       farns-=1;
-      tone(pinBuzz, keyertone );
-      delay( dittime );
-      noTone( pinBuzz);
+      //tone(pinBuzz, keyertone );
+      //delay( dittime );
+      //noTone( pinBuzz);
       keyerstate = 0;
       keyerinfo = 0;
       last_ch = 0;
@@ -1650,6 +1654,8 @@ void setup() {
   pinMode(pinDah,  INPUT_PULLUP);
   pinMode(pinSw1,  INPUT_PULLUP);
   pinMode(pinBuzz, OUTPUT);
+  pinMode(BUZZ_GND, OUTPUT);
+  digitalWrite( BUZZ_GND, LOW );
   // startup init
   Serial.begin(BAUDRATE);     // init serial/debug port
 
@@ -1725,12 +1731,14 @@ void setup() {
 // main loop
 void loop() {
 
+  digitalWrite( BUZZ_GND, LOW );
+
   // no buttons pressed
   iambic_keyer();
 
   if( last_ch == ';' && next2last_ch == ';' )
     menu_trainer_mode();
 
-  if( last_ch == 0x08 && next2last_ch == ';' )
+  if( last_ch == '\n' && next2last_ch == ';' )
     menu_quiz();
 }
