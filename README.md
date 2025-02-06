@@ -38,3 +38,7 @@ That's all.
 K4SDM
 
 
+
+![](https://github.com/busysteve/CW_Keyboard_HID/blob/main/CW_Keyboard_HID_Diagram.png)
+
+
