@@ -41,4 +41,16 @@ K4SDM
 
 ![](https://github.com/busysteve/CW_Keyboard_HID/blob/main/CW_Keyboard_HID_Diagram.png)
 
+#Parts List
+
+[Arduino Micro Pro](https://www.amazon.com/dp/B0B6HYLC44)
+
+[Potentiometers](https://www.amazon.com/dp/B07XQ7NTQR)
+
+[3.5mm stereo jacks](https://www.amazon.com/dp/B07MN1RK7F)
+
+[Ear buds](https://www.amazon.com/Sony-MDRE9LP-BLK-Ear-Buds/dp/B004RE3YNA)
+
+[Small Project Boxes](https://www.amazon.com/dp/B07Q11F7DS)
+
 
