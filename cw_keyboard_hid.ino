@@ -720,10 +720,10 @@ void ditcalc( char keywpm = 0 ) {
 
   dittime    = DITCONST/keywpm;
   dahtime    = (DITCONST * 3)/keywpm;
-  lettergap1 = (DITCONST * 2.5)/(keywpm);
-  lettergap2   = (DITCONST * 3)/(farn);
-  wordgap1   = (DITCONST * 5)/(keywpm);
-  wordgap2   = (DITCONST * 7)/(farn);
+  lettergap1 = (DITCONST * 2)/(keywpm);
+  lettergap2   = (DITCONST * 2)/(farn);
+  wordgap1   = (DITCONST * 6.5)/(keywpm);
+  wordgap2   = (DITCONST * 6.5)/(farn);
 }
 
 // change the keyer speed
