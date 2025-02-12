@@ -1240,9 +1240,10 @@ void menu_lesson_window() {
       last_ch = 0;
     }
     // check limits
-    if (lesson_window <= MINWINDOW) lesson_window = MINWINDOW;
-    if (lesson_window > MAXWINDOW) lesson_window = MAXWINDOW;
+    if (lesson_window <= MINWINDOW) lesson_window = MAXWINDOW;
+    if (lesson_window > MAXWINDOW) lesson_window = MINWINDOW;
 
+    if( lesson_window > lesson ) lesson_window = 0;
     
     if( dirty )
     {
@@ -1254,7 +1255,7 @@ void menu_lesson_window() {
       println( "" );
 
       int idx = (lesson+1) - lesson_window;
-      if( idx <= 0 || idx <= (lesson+1) )
+      if( idx <= 0 || idx >= (lesson+1) )
         idx = 0;
 
 
@@ -1577,10 +1578,7 @@ test_again:
 
     for( int i=0; i < len; i++ )
     {
-      if( window == 0 )
-        quiz[i] = (random() % 4) == 0 && quiz[i-1] != ' ' && lesson_size > 6 ? ' ' : lesson_seq[random() % (lesson+1)];
-      else  
-        quiz[i] = (random() % 4) == 0 && quiz[i-1] != ' ' && lesson_size > 6 ? ' ' : lesson_seq[ ( random() % (window) ) ];
+      quiz[i] = (random() % 5) == 0 && quiz[i-1] != ' ' && lesson_size > 6 ? ' ' : lesson_seq[(window) + ( random() % ( (lesson+1) - (window) ) )];
     }
     quiz[len] = 0;
 repeat:    
