@@ -1573,7 +1573,7 @@ test_again:
     //char window = (lesson+1) - lesson_window;
     //if( window <=0 )
     //  window = 0;
-    char window = ( lesson_window == 0 ? (lesson+1) : lesson_window );
+    char window = lesson_window == 0 ? lesson_window : (lesson_window+1);
 
     for( int i=0; i < len; i++ )
     {
