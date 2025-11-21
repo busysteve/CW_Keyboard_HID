@@ -33,6 +33,15 @@ To set your word per minute rate hold enter ``` -.-.-. -.-.-. ```.  This will pu
 .
 
 ```
+
+
+#Enter Quiz Mode with "[newline];" (A new line followed by a semicolon)
+```
+...... -.-.-.
+```
+
+
+
 That's all.
 
 K4SDM
