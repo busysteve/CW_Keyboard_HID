@@ -13,7 +13,7 @@
 #include <Keyboard.h>
 #include <EEPROM.h>
 
-const char version[] = "1.0.3";
+const char version[] = "1.1.0";
 #define VERSION 10
 
 // Change these to suit your wiring - I use these as next to 
@@ -1530,6 +1530,53 @@ void menu_mode() {
 
 }
 
+
+
+void shuffle(char *arr, size_t n) {
+    if (n <= 1) return;
+
+    for (size_t i = n - 1; i > 0; i--) {
+        size_t j = rand() % (i + 1);  // pick index from 0..i
+        int temp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = temp;
+    }
+}
+
+short pulled=0;
+char pullbuf[200];
+short pullbufpos = 0;
+
+void preppull()
+{
+  srandom( millis() );
+
+  char window = lesson_window == 0 ? lesson_window : (lesson_window+1);
+
+  for( int y=0; y < (lesson_size); y++ )
+  {
+    for( int x=window; x <= lesson; x++ )
+    {
+      pullbuf[pullbufpos] = lesson_seq[window + x];
+      pullbufpos++;
+    }
+  }
+
+  shuffle( pullbuf, pullbufpos );
+
+  pulled = pullbufpos;
+}
+
+// KMRSUAPTLOWI.NJEF0Y,VG5/Q9ZH38B?427C1D6X\
+
+char pullchar()
+{
+  if( pulled == 0 )
+    preppull();
+  
+  return pullbuf[--pulled];
+}
+
 // send a message
 void menu_quiz() {
   char prev_wpm = keyerwpm;
@@ -1551,7 +1598,6 @@ test_again:
 
     delay(2200);
 
-
     char* lesson_seq;
 
     if( lesson_mode == 1 )
@@ -1568,16 +1614,14 @@ test_again:
       len = lesson_size;
     }
     
-    srandom( millis() );
+    //srandom( millis() );
 
-    //char window = (lesson+1) - lesson_window;
-    //if( window <=0 )
-    //  window = 0;
-    char window = lesson_window == 0 ? lesson_window : (lesson_window+1);
+    // char window = lesson_window == 0 ? lesson_window : (lesson_window+1);
 
     for( int i=0; i < len; i++ )
     {
-      quiz[i] = (random() % 5) == 0 && quiz[i-1] != ' ' && lesson_size > 6 ? ' ' : lesson_seq[(window) + ( random() % ( (lesson+1) - (window) ) )];
+      // quiz[i] = (random() % 5) == 0 && quiz[i-1] != ' ' && lesson_size > 6 ? ' ' : lesson_seq[(window) + ( random() % ( (lesson+1) - (window) ) )];
+      quiz[i] = pullchar();
     }
     quiz[len] = 0;
 repeat:    
