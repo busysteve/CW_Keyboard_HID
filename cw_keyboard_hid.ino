@@ -13,7 +13,7 @@
 #include <Keyboard.h>
 #include <EEPROM.h>
 
-const char version[] = "1.1.0";
+const char version[] = "1.1.1";
 #define VERSION 10
 
 // Change these to suit your wiring - I use these as next to 
@@ -1636,17 +1636,17 @@ repeat:
 
     iambic_keyer(false);
     while ( !(last_ch == 'X' ) ) {
-      if (last_ch == 'T') {
+      if (last_ch == 'M') {
         keyerwpm++;
         goto test_again;
       }
 
-      else if (last_ch == 'E') {
+      else if (last_ch == 'I') {
         keyerwpm--;
         goto test_again;
       }
 
-      else if (last_ch == 'N') {
+      else if (last_ch == 'T' || last_ch == 'E') {
         goto test_again;
       }
 
