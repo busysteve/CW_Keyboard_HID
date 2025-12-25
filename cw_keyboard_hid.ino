@@ -14,7 +14,7 @@
 #include <EEPROM.h>
 
 const char version[] = "1.1.1";
-#define VERSION 10
+#define VERSION 11
 
 // Change these to suit your wiring - I use these as next to 
 // Ground to simplify wiring
@@ -1545,19 +1545,21 @@ void shuffle(char *arr, size_t n) {
 
 short pulled=0;
 char pullbuf[200];
-short pullbufpos = 0;
 
 void preppull()
 {
+  short pullbufpos = 0;
+
   srandom( millis() );
 
-  char window = lesson_window == 0 ? lesson_window : (lesson_window+1);
+  // quiz[i] = (random() % 5) == 0 && quiz[i-1] != ' ' && lesson_size > 6 ? ' ' : lesson_seq[(window) + ( random() % ( (lesson+1) - (window) ) )];
+  char window = lesson_window == 0 ? lesson : (lesson - lesson_window);
 
-  for( int y=0; y < (lesson_size); y++ )
+  for( int y=0; y < (lesson_size+1); y++ )
   {
     for( int x=window; x <= lesson; x++ )
     {
-      pullbuf[pullbufpos] = lesson_seq[window + x];
+      pullbuf[pullbufpos] = lesson_seq[x];
       pullbufpos++;
     }
   }
@@ -1574,6 +1576,9 @@ char pullchar()
   if( pulled == 0 )
     preppull();
   
+  if( pulled < 0 )
+    pulled = 1;
+
   return pullbuf[--pulled];
 }
 
