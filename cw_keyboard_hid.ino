@@ -13,7 +13,7 @@
 #include <Keyboard.h>
 #include <EEPROM.h>
 
-const char version[] = "1.1.1";
+const char version[] = "1.1.2";
 #define VERSION 11
 
 // Change these to suit your wiring - I use these as next to 
@@ -77,7 +77,7 @@ const char* lesson_koch    = "KMRSUAPTLOWI.NJEF0Y,VG5/Q9ZH38B?427C1D6X\\";
 const char* lesson_estonia = "ESTONIADRMULCHPFWYGBJKQXZY1234567890,.?/\\";
 char* lesson_seq;
 
-byte lesson_window = 0;
+char lesson_window = 0;
 
 char buzz_mode = 0;
 const byte ver = 1;
@@ -1239,7 +1239,7 @@ void menu_lesson_window() {
       last_ch = 0;
     }
     // check limits
-    if (lesson_window <= MINWINDOW) lesson_window = MAXWINDOW;
+    if (lesson_window < MINWINDOW) lesson_window = MAXWINDOW;
     if (lesson_window > MAXWINDOW) lesson_window = MINWINDOW;
 
     if( lesson_window > lesson ) lesson_window = 0;
@@ -1821,3 +1821,4 @@ Z     --..   | \n\
     ");
   }
 }
+
