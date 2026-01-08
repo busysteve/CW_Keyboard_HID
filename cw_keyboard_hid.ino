@@ -759,6 +759,21 @@ void refresh_reset()
 }
 
 
+void printnum( double num )
+{
+  Keyboard.print( num );
+}
+
+void printnum( int num )
+{
+  Keyboard.print( num );
+}
+
+void printstr( char *str )
+{
+  Keyboard.print( str );
+}
+
 void printchar( char ch )
 {
   Keyboard.print( ch );
@@ -1550,10 +1565,10 @@ void preppull()
 {
   short pullbufpos = 0;
 
-  srandom( millis() );
+  srand( millis() );
 
   // quiz[i] = (random() % 5) == 0 && quiz[i-1] != ' ' && lesson_size > 6 ? ' ' : lesson_seq[(window) + ( random() % ( (lesson+1) - (window) ) )];
-  char window = lesson_window == 0 ? lesson : (lesson - lesson_window);
+  char window = lesson_window == 0 ? 0 : (lesson - lesson_window);
 
   for( int y=0; y < (lesson_size+1); y++ )
   {
@@ -1585,6 +1600,8 @@ char pullchar()
 // send a message
 void menu_quiz() {
   char prev_wpm = keyerwpm;
+  int correct = 0;
+  int wrong = 0;
 test_again:
   if( lesson_mode )
   {
@@ -1619,7 +1636,7 @@ test_again:
       len = lesson_size;
     }
     
-    //srandom( millis() );
+    srandom( millis() );
 
     // char window = lesson_window == 0 ? lesson_window : (lesson_window+1);
 
@@ -1631,6 +1648,8 @@ test_again:
     quiz[len] = 0;
 repeat:    
     send_cwmsg(quiz, 1);
+
+    unsigned long quiz_timer = millis();
 
     ditcalc(prev_wpm);
     println();
@@ -1652,6 +1671,18 @@ repeat:
       }
 
       else if (last_ch == 'T' || last_ch == 'E') {
+        if( last_ch == 'T' )
+            correct++;
+        
+        if( last_ch == 'E' )
+            wrong++;
+
+        printnum( (double)(millis() - quiz_timer) * .001 );
+        printstr( "s - ");
+        printnum( correct );
+        printstr( " / " );
+        printnum( wrong );
+
         goto test_again;
       }
 
